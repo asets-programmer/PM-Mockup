@@ -35,6 +35,19 @@ const PageWorkOrders = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingWorkOrder, setEditingWorkOrder] = useState(null);
   const [viewMode, setViewMode] = useState('grid'); // grid, list
+  
+  // HO Approval states
+  const [showHOApprovalModal, setShowHOApprovalModal] = useState(false);
+  const [selectedTaskForHOApproval, setSelectedTaskForHOApproval] = useState(null);
+  const [hoApprovalData, setHoApprovalData] = useState({
+    approvalStatus: 'pending', // pending, approved, rejected
+    approvalNotes: '',
+    selectedVendor: '',
+    approvedBy: '',
+    approvalDate: '',
+    estimatedCost: '',
+    vendorContact: ''
+  });
 
   // Add Work Order form states
   const [newWorkOrder, setNewWorkOrder] = useState({
@@ -163,6 +176,26 @@ const PageWorkOrders = () => {
         target: 4, // hours
         remaining: 0,
         status: 'Completed'
+      },
+      review: {
+        status: 'approved',
+        reviewedBy: 'ABH',
+        reviewDate: '2025-08-15 14:00:00',
+        reviewNotes: 'Maintenance CCTV telah dilakukan dengan baik. Semua checklist telah diselesaikan sesuai standar.',
+        additionalRecommendations: 'Disarankan untuk melakukan backup recording secara berkala dan monitoring kualitas video.',
+        componentRecommendations: [
+          { component: 'HDD DVR', recommendation: 'Ganti dalam 6 bulan ke depan', priority: 'Medium' }
+        ],
+        followUpAction: 'schedule_replacement'
+      },
+      hoApproval: {
+        status: 'approved',
+        approvedBy: 'Manager HO',
+        approvalDate: '2025-08-15 16:00:00',
+        approvalNotes: 'Approved untuk penggantian HDD DVR sesuai rekomendasi ABH',
+        selectedVendor: 'PT Teknik Mandiri',
+        estimatedCost: 'Rp 2.500.000',
+        vendorContact: '08123456789'
       }
     },
     {
@@ -384,6 +417,67 @@ const PageWorkOrders = () => {
       selectedVendor: '',
       selectedInternalTechnicianForVendor: ''
     });
+  };
+
+  // HO Approval Functions
+  const handleHOApproval = (workOrder) => {
+    setSelectedTaskForHOApproval(workOrder);
+    setHoApprovalData({
+      approvalStatus: workOrder.hoApproval?.status || 'pending',
+      approvalNotes: workOrder.hoApproval?.approvalNotes || '',
+      selectedVendor: workOrder.hoApproval?.selectedVendor || '',
+      approvedBy: workOrder.hoApproval?.approvedBy || '',
+      approvalDate: workOrder.hoApproval?.approvalDate || '',
+      estimatedCost: workOrder.hoApproval?.estimatedCost || '',
+      vendorContact: workOrder.hoApproval?.vendorContact || ''
+    });
+    setShowHOApprovalModal(true);
+  };
+
+  const handleSubmitHOApproval = () => {
+    // Simulate submitting HO approval
+    console.log('Submitting HO approval:', hoApprovalData);
+    
+    if (hoApprovalData.approvalStatus === 'approved') {
+      alert('Work Order berhasil disetujui oleh HO!');
+    } else if (hoApprovalData.approvalStatus === 'rejected') {
+      alert('Work Order ditolak oleh HO!');
+    }
+    
+    setShowHOApprovalModal(false);
+    setSelectedTaskForHOApproval(null);
+    setHoApprovalData({
+      approvalStatus: 'pending',
+      approvalNotes: '',
+      selectedVendor: '',
+      approvedBy: '',
+      approvalDate: '',
+      estimatedCost: '',
+      vendorContact: ''
+    });
+  };
+
+  const handleCancelHOApproval = () => {
+    setShowHOApprovalModal(false);
+    setSelectedTaskForHOApproval(null);
+    setHoApprovalData({
+      approvalStatus: 'pending',
+      approvalNotes: '',
+      selectedVendor: '',
+      approvedBy: '',
+      approvalDate: '',
+      estimatedCost: '',
+      vendorContact: ''
+    });
+  };
+
+  const getHOApprovalStatusColor = (status) => {
+    switch (status) {
+      case 'approved': return 'text-green-600 bg-green-100';
+      case 'rejected': return 'text-red-600 bg-red-100';
+      case 'pending': return 'text-yellow-600 bg-yellow-100';
+      default: return 'text-gray-600 bg-gray-100';
+    }
   };
 
   return (
@@ -686,6 +780,24 @@ const PageWorkOrders = () => {
                     </div>
                   </div>
 
+                  {/* HO Approval Status */}
+                  {wo.status === 'Completed' && wo.review?.status === 'approved' && (
+                    <div className="mb-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-600">HO Approval</span>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getHOApprovalStatusColor(wo.hoApproval?.status || 'pending')}`}>
+                          {wo.hoApproval?.status === 'approved' ? 'Approved' : 
+                           wo.hoApproval?.status === 'rejected' ? 'Rejected' : 'Pending HO Approval'}
+                        </span>
+                      </div>
+                      {wo.hoApproval?.approvedBy && (
+                        <div className="text-xs text-gray-500 mt-1">
+                          Approved by: {wo.hoApproval.approvedBy}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {/* Dates */}
                   <div className="space-y-1 text-sm text-gray-600 mb-4">
                     <div className="flex items-center">
@@ -712,6 +824,15 @@ const PageWorkOrders = () => {
                       <button className="flex-1 px-3 py-2 text-sm bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors font-medium">
                         <Pause className="w-4 h-4 inline mr-1" />
                         Pause
+                      </button>
+                    )}
+                    {wo.status === 'Completed' && wo.review?.status === 'approved' && (
+                      <button 
+                        onClick={() => handleHOApproval(wo)}
+                        className="flex-1 px-3 py-2 text-sm bg-orange-50 text-orange-600 rounded-lg hover:bg-orange-100 transition-colors font-medium"
+                      >
+                        <Users className="w-4 h-4 inline mr-1" />
+                        HO Approval
                       </button>
                     )}
                     <button 
@@ -968,6 +1089,65 @@ const PageWorkOrders = () => {
                         ))}
                       </div>
                     </div>
+
+                    {/* HO Approval Information */}
+                    {selectedWorkOrder.status === 'Completed' && selectedWorkOrder.review?.status === 'approved' && selectedWorkOrder.hoApproval && (
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-800 mb-4">HO Approval</h3>
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-gray-600">Status Approval:</span>
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getHOApprovalStatusColor(selectedWorkOrder.hoApproval.status)}`}>
+                              {selectedWorkOrder.hoApproval.status === 'approved' ? 'Approved' : 
+                               selectedWorkOrder.hoApproval.status === 'rejected' ? 'Rejected' : 'Pending HO Approval'}
+                            </span>
+                          </div>
+                          {selectedWorkOrder.hoApproval.approvedBy && (
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Approved By:</span>
+                              <span className="font-medium">{selectedWorkOrder.hoApproval.approvedBy}</span>
+                            </div>
+                          )}
+                          {selectedWorkOrder.hoApproval.approvalDate && (
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Approval Date:</span>
+                              <span className="font-medium">{formatDate(selectedWorkOrder.hoApproval.approvalDate)}</span>
+                            </div>
+                          )}
+                          {selectedWorkOrder.hoApproval.approvalNotes && (
+                            <div>
+                              <span className="text-gray-600 block mb-1">Approval Notes:</span>
+                              <p className="text-sm text-gray-700 bg-gray-50 p-3 rounded-lg">{selectedWorkOrder.hoApproval.approvalNotes}</p>
+                            </div>
+                          )}
+                          {selectedWorkOrder.hoApproval.status === 'approved' && (
+                            <div className="bg-green-50 p-4 rounded-lg">
+                              <h4 className="font-medium text-green-800 mb-2">Vendor Assignment</h4>
+                              <div className="space-y-2">
+                                {selectedWorkOrder.hoApproval.selectedVendor && (
+                                  <div className="flex justify-between">
+                                    <span className="text-green-700">Selected Vendor:</span>
+                                    <span className="font-medium text-green-800">{selectedWorkOrder.hoApproval.selectedVendor}</span>
+                                  </div>
+                                )}
+                                {selectedWorkOrder.hoApproval.estimatedCost && (
+                                  <div className="flex justify-between">
+                                    <span className="text-green-700">Estimated Cost:</span>
+                                    <span className="font-medium text-green-800">{selectedWorkOrder.hoApproval.estimatedCost}</span>
+                                  </div>
+                                )}
+                                {selectedWorkOrder.hoApproval.vendorContact && (
+                                  <div className="flex justify-between">
+                                    <span className="text-green-700">Vendor Contact:</span>
+                                    <span className="font-medium text-green-800">{selectedWorkOrder.hoApproval.vendorContact}</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Action Buttons */}
@@ -989,6 +1169,15 @@ const PageWorkOrders = () => {
                       <button className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors">
                         <Pause className="w-4 h-4 mr-2 inline" />
                         Pause Work
+                      </button>
+                    )}
+                    {selectedWorkOrder.status === 'Completed' && selectedWorkOrder.review?.status === 'approved' && (
+                      <button 
+                        onClick={() => handleHOApproval(selectedWorkOrder)}
+                        className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
+                      >
+                        <Users className="w-4 h-4 mr-2 inline" />
+                        HO Approval
                       </button>
                     )}
                     <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">

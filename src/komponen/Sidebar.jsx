@@ -21,8 +21,8 @@ const Sidebar = () => {
   const menuItems = [
     { icon: BarChart3, label: 'Dashboard', path: '/dashboard' },
     { icon: Activity, label: 'Process Flow', path: '/process-flow' },
-    { icon: CheckSquare, label: 'Task', path: '/task', subtitle: 'Teknisi Internal' },
-    { icon: Briefcase, label: 'Work Orders', path: '/work-orders', subtitle: 'Vendor (Coming Soon)', isComingSoon: true },
+    { icon: CheckSquare, label: 'Task', path: '/task' },
+    { icon: Briefcase, label: 'Work Orders', path: '/work-orders' },
     { icon: Settings, label: 'Equipment', path: '/equipment' },
     { icon: Bell, label: 'Notifications', path: '/notifications' },
     { icon: BarChart3, label: 'Reports', path: '/reports' },

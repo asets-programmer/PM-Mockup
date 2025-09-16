@@ -74,8 +74,8 @@ const PageNotifications = () => {
       timestamp: '2025-08-15 14:30:25',
       status: 'Unread',
       priority: 'Critical',
-      workOrder: 'WO-2025-001',
-      actions: ['Create Work Order', 'View Equipment']
+      workOrder: 'TA-2025-001',
+      actions: ['Create Task', 'View Equipment']
     },
     {
       id: 'NOT-002',
@@ -90,8 +90,8 @@ const PageNotifications = () => {
       status: 'Read',
       priority: 'Medium',
       technician: 'Rudi Hermawan',
-      workOrder: 'WO-2025-002',
-      actions: ['View Work Order', 'Reschedule']
+      workOrder: 'TA-2025-002',
+      actions: ['View Task', 'Reschedule']
     },
     {
       id: 'NOT-003',
@@ -106,8 +106,8 @@ const PageNotifications = () => {
       status: 'Read',
       priority: 'Low',
       technician: 'Andi Pratama',
-      workOrder: 'WO-2025-003',
-      actions: ['View Report', 'Verify Work', 'Close Work Order']
+      workOrder: 'TA-2025-003',
+      actions: ['View Report', 'Verify Work', 'Close Task']
     },
     {
       id: 'NOT-005',
@@ -122,8 +122,8 @@ const PageNotifications = () => {
       status: 'Unread',
       priority: 'High',
       technician: 'Budi Santoso',
-      workOrder: 'WO-2025-004',
-      actions: ['Create Work Order', 'View Equipment']
+      workOrder: 'TA-2025-004',
+      actions: ['Create Task', 'View Equipment']
     },
     {
       id: 'NOT-006',
@@ -138,8 +138,8 @@ const PageNotifications = () => {
       status: 'Read',
       priority: 'Medium',
       technician: 'Dedi Kurniawan',
-      workOrder: 'WO-2025-005',
-      actions: ['View Work Order', 'Reschedule']
+      workOrder: 'TA-2025-005',
+      actions: ['View Task', 'Reschedule']
     },
     {
       id: 'NOT-007',
@@ -154,8 +154,8 @@ const PageNotifications = () => {
       status: 'Read',
       priority: 'Low',
       technician: 'Eko Susanto',
-      workOrder: 'WO-2025-006',
-      actions: ['View Report', 'Verify Work', 'Close Work Order']
+      workOrder: 'TA-2025-006',
+      actions: ['View Report', 'Verify Work', 'Close Task']
     },
   ];
 
@@ -252,7 +252,7 @@ const PageNotifications = () => {
     setActionType(action);
     
     switch (action) {
-      case 'Create Work Order':
+      case 'Create Task':
         setWorkOrderData({
           title: notification.title,
           description: notification.message,
@@ -270,7 +270,7 @@ const PageNotifications = () => {
       case 'View Equipment':
         navigate('/equipment');
         break;
-      case 'View Work Order':
+      case 'View Task':
         navigate('/work-orders');
         break;
       case 'Reschedule':
@@ -315,7 +315,7 @@ const PageNotifications = () => {
       case 'Verify Work':
         setShowActionModal(true);
         break;
-      case 'Close Work Order':
+      case 'Close Task':
         setShowActionModal(true);
         break;
       case 'View Log':
@@ -359,7 +359,7 @@ const PageNotifications = () => {
   const handleCreateWorkOrder = () => {
     // Simulate creating work order
     console.log('Creating work order:', workOrderData);
-    alert('Work Order berhasil dibuat!');
+    alert('Task berhasil dibuat!');
     setShowCreateWorkOrderModal(false);
     setWorkOrderData({
       title: '',
@@ -419,15 +419,15 @@ const PageNotifications = () => {
 
   const getActionIcon = (action) => {
     switch (action) {
-      case 'Create Work Order': return <FileText className="w-4 h-4" />;
+      case 'Create Task': return <FileText className="w-4 h-4" />;
       case 'View Equipment': return <Eye className="w-4 h-4" />;
-      case 'View Work Order': return <FileText className="w-4 h-4" />;
+      case 'View Task': return <FileText className="w-4 h-4" />;
       case 'Reschedule': return <RotateCcw className="w-4 h-4" />;
       case 'View Dashboard': return <BarChart3 className="w-4 h-4" />;
       case 'Export Report': return <Upload className="w-4 h-4" />;
       case 'View Report': return <BarChart3 className="w-4 h-4" />;
       case 'Verify Work': return <CheckCircle2 className="w-4 h-4" />;
-      case 'Close Work Order': return <XCircle className="w-4 h-4" />;
+      case 'Close Task': return <XCircle className="w-4 h-4" />;
       case 'View Log': return <FileCheck className="w-4 h-4" />;
       case 'Verify Backup': return <CheckCircle2 className="w-4 h-4" />;
       default: return <Activity className="w-4 h-4" />;
@@ -436,21 +436,21 @@ const PageNotifications = () => {
 
   const getActionColor = (action) => {
     switch (action) {
-      case 'Create Work Order':
+      case 'Create Task':
       case 'Verify Work':
       case 'Verify Backup':
         return 'bg-green-50 text-green-600 hover:bg-green-100';
       case 'Reschedule':
         return 'bg-blue-50 text-blue-600 hover:bg-blue-100';
       case 'View Equipment':
-      case 'View Work Order':
+      case 'View Task':
       case 'View Dashboard':
       case 'View Report':
       case 'View Log':
         return 'bg-gray-50 text-gray-600 hover:bg-gray-100';
       case 'Export Report':
         return 'bg-purple-50 text-purple-600 hover:bg-purple-100';
-      case 'Close Work Order':
+      case 'Close Task':
         return 'bg-red-50 text-red-600 hover:bg-red-100';
       default:
         return 'bg-blue-50 text-blue-600 hover:bg-blue-100';
@@ -809,13 +809,13 @@ const PageNotifications = () => {
             </div>
           )}
 
-          {/* Create Work Order Modal */}
+          {/* Create Task Modal */}
           {showCreateWorkOrderModal && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
               <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
                 <div className="p-6 border-b">
                   <div className="flex items-center justify-between">
-                    <h2 className="text-xl font-semibold text-gray-800">Create Work Order</h2>
+                    <h2 className="text-xl font-semibold text-gray-800">Create Task</h2>
                     <button
                       onClick={handleCancelCreateWorkOrder}
                       className="text-gray-400 hover:text-gray-600"
@@ -1021,7 +1021,7 @@ const PageNotifications = () => {
                       onClick={handleCreateWorkOrder}
                       className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                     >
-                      Create Work Order
+                      Create Task
                     </button>
                   </div>
                 </div>
@@ -1105,7 +1105,7 @@ const PageNotifications = () => {
               <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
                 <div className="p-6 border-b">
                   <div className="flex items-center justify-between">
-                    <h2 className="text-xl font-semibold text-gray-800">Work Order Report</h2>
+                    <h2 className="text-xl font-semibold text-gray-800">Task Report</h2>
                     <button
                       onClick={handleCloseReport}
                       className="text-gray-400 hover:text-gray-600"
@@ -1122,7 +1122,7 @@ const PageNotifications = () => {
                       <div>
                         <h3 className="text-lg font-semibold text-gray-800 mb-2">{reportData.title}</h3>
                         <div className="space-y-1 text-sm text-gray-600">
-                          <p><strong>Work Order ID:</strong> {reportData.workOrderId}</p>
+                          <p><strong>Task ID:</strong> {reportData.workOrderId}</p>
                           <p><strong>Equipment:</strong> {reportData.equipment}</p>
                           <p><strong>Location:</strong> {reportData.location}</p>
                           <p><strong>Technician:</strong> {reportData.technician}</p>

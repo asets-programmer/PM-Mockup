@@ -1384,49 +1384,42 @@ const PageTeknisi = () => {
                   </div>
 
                   {/* Action Buttons */}
-                  <div className="flex space-x-2 pt-2 border-t border-gray-100">
+                  <div className="grid grid-cols-2 gap-2 pt-2 border-t border-gray-100">
                     {wo.status === 'Open' && (
-                      <button className="flex-1 px-3 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium">
-                        <Play className="w-4 h-4 inline mr-1" />
+                      <button className="px-2 py-1.5 text-xs bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium">
+                        <Play className="w-3 h-3 inline mr-1" />
                         Mulai
                       </button>
                     )}
                     {wo.status === 'In Progress' && (
-                      <button className="flex-1 px-3 py-2 text-sm bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors font-medium">
-                        <Pause className="w-4 h-4 inline mr-1" />
+                      <button className="px-2 py-1.5 text-xs bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors font-medium">
+                        <Pause className="w-3 h-3 inline mr-1" />
                         Pause
                       </button>
                     )}
-                    <button 
-                      onClick={() => handleRequestComponents(wo)}
-                      className="flex-1 px-3 py-2 text-sm bg-orange-50 text-orange-600 rounded-lg hover:bg-orange-100 transition-colors font-medium"
-                    >
-                      <Wrench className="w-4 h-4 inline mr-1" />
-                      Request
-                    </button>
                     {wo.status === 'Completed' && (
                       <button 
                         onClick={() => handleReviewWork(wo)}
-                        className="flex-1 px-3 py-2 text-sm bg-purple-50 text-purple-600 rounded-lg hover:bg-purple-100 transition-colors font-medium"
+                        className="px-2 py-1.5 text-xs bg-purple-50 text-purple-600 rounded-lg hover:bg-purple-100 transition-colors font-medium"
                       >
-                        <CheckCircle className="w-4 h-4 inline mr-1" />
+                        <CheckCircle className="w-3 h-3 inline mr-1" />
                         Review
                       </button>
                     )}
                     {wo.status === 'Completed' && wo.review?.status === 'approved' && (
                       <button 
                         onClick={() => handleHOApproval(wo)}
-                        className="flex-1 px-3 py-2 text-sm bg-orange-50 text-orange-600 rounded-lg hover:bg-orange-100 transition-colors font-medium"
+                        className="px-2 py-1.5 text-xs bg-orange-50 text-orange-600 rounded-lg hover:bg-orange-100 transition-colors font-medium"
                       >
-                        <Users className="w-4 h-4 inline mr-1" />
-                        HO Approval
+                        <Users className="w-3 h-3 inline mr-1" />
+                        HO
                       </button>
                     )}
                     <button 
                       onClick={() => setSelectedWorkOrder(wo)}
-                      className="flex-1 px-3 py-2 text-sm bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors font-medium"
+                      className="px-2 py-1.5 text-xs bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors font-medium"
                     >
-                      <FileText className="w-4 h-4 inline mr-1" />
+                      <FileText className="w-3 h-3 inline mr-1" />
                       Detail
                     </button>
                   </div>
@@ -2806,6 +2799,50 @@ const PageTeknisi = () => {
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                             placeholder="Masukkan rekomendasi tambahan jika ada..."
                           />
+                        </div>
+
+                        {/* Request Komponen */}
+                        <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                          <h4 className="text-lg font-semibold text-orange-800 mb-4">Request Komponen</h4>
+                          <div className="space-y-4">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-2">Komponen yang Dibutuhkan</label>
+                              <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                <option value="">Pilih Komponen</option>
+                                {inventoryData.map(item => (
+                                  <option key={item.id} value={item.id}>
+                                    {item.componentName} - Stock: {item.currentStock} {item.unit}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-2">Quantity</label>
+                              <input
+                                type="number"
+                                min="1"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                placeholder="Jumlah yang dibutuhkan"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-2">Priority</label>
+                              <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                <option value="Low">Low</option>
+                                <option value="Medium">Medium</option>
+                                <option value="High">High</option>
+                                <option value="Critical">Critical</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
+                              <textarea
+                                rows={3}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                placeholder="Tambahkan catatan tentang kebutuhan komponen..."
+                              />
+                            </div>
+                          </div>
                         </div>
 
                         {/* Component Recommendations */}

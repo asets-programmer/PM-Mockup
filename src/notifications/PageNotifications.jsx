@@ -42,6 +42,7 @@ const PageNotifications = () => {
   const [showRescheduleModal, setShowRescheduleModal] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportData, setReportData] = useState(null);
+  const [isFromHOApproval, setIsFromHOApproval] = useState(false);
   const [workOrderData, setWorkOrderData] = useState({
     title: '',
     description: '',
@@ -157,9 +158,51 @@ const PageNotifications = () => {
       workOrder: 'TA-2025-006',
       actions: ['View Report', 'Verify Work', 'Close Task']
     },
+    {
+      id: 'NOT-008',
+      type: 'HO Approval Approved',
+      category: 'info',
+      title: 'Work Order Approved - Genset A Component Replacement',
+      message: 'HO approval approved for component replacement. Work order automatically created and assigned to vendor.',
+      location: 'SPBU Jakarta Selatan',
+      equipment: 'Genset A',
+      severity: 'Medium',
+      timestamp: '2025-08-15 16:30:00',
+      status: 'Unread',
+      priority: 'High',
+      lastMaintenanceBy: 'Sari Wijaya',
+      vendor: 'PT Teknik Mandiri',
+      workOrder: 'TA-2025-007',
+      estimatedCost: 'Rp 2.500.000',
+      componentDetails: 'Piston Ring, Motor Capacitor, Compressor Oil',
+      technician: 'Sari Wijaya',
+      notes: 'Genset mengalami masalah pada sistem pendingin dan kompresor. Piston ring sudah aus, motor capacitor tidak berfungsi optimal, dan compressor oil perlu diganti. Semua komponen perlu diganti untuk memastikan performa genset optimal.',
+      actions: ['View Work Order', 'Create Task', 'Track Progress']
+    },
+    {
+      id: 'NOT-009',
+      type: 'HO Approval Approved',
+      category: 'info',
+      title: 'Work Order Approved - CCTV System HDD Replacement',
+      message: 'HO approval approved for HDD replacement. Work order automatically created and assigned to vendor.',
+      location: 'SPBU Jakarta Selatan',
+      equipment: 'CCTV System',
+      severity: 'Medium',
+      timestamp: '2025-08-15 14:00:00',
+      status: 'Read',
+      priority: 'Medium',
+      lastMaintenanceBy: 'Andi Pratama',
+      vendor: 'PT Teknik Mandiri',
+      workOrder: 'TA-2025-008',
+      estimatedCost: 'Rp 1.800.000',
+      componentDetails: 'HDD DVR 2TB, Power Supply 12V, BNC Connector',
+      technician: 'Andi Pratama',
+      notes: 'CCTV system mengalami masalah recording dan koneksi. HDD DVR sudah penuh dan perlu upgrade kapasitas, power supply 12V tidak stabil, dan BNC connector ada yang rusak. Perlu penggantian komponen untuk memastikan sistem recording berjalan normal.',
+      actions: ['View Work Order', 'Create Task', 'Track Progress']
+    },
   ];
 
-  const notificationTypes = ['All', 'High Priority Alert', 'Maintenance Due', 'Task Completed'];
+  const notificationTypes = ['All', 'High Priority Alert', 'Maintenance Due', 'Task Completed', 'HO Approval Approved'];
   const statuses = ['All', 'Unread', 'Read'];
   const locations = ['All', 'SPBU Jakarta Selatan', 'SPBU Jakarta Utara', 'SPBU Jakarta Barat', 'SPBU Jakarta Timur'];
   
@@ -253,18 +296,40 @@ const PageNotifications = () => {
     
     switch (action) {
       case 'Create Task':
-        setWorkOrderData({
-          title: notification.title,
-          description: notification.message,
-          priority: notification.priority,
-          technicianType: 'internal',
-          selectedInternalTechnician: '',
-          selectedVendor: '',
-          selectedInternalTechnicianForVendor: '',
-          estimatedHours: 4,
-          scheduledDate: '',
-          scheduledTime: ''
-        });
+        // Smart handling based on notification type
+                  if (notification.type === 'HO Approval Approved') {
+                    setIsFromHOApproval(true);
+                    setWorkOrderData({
+                      title: notification.title,
+                      description: `Component replacement work order for ${notification.equipment}. ${notification.componentDetails}`,
+                      priority: notification.priority,
+                      technicianType: 'vendor-internal',
+                      selectedInternalTechnician: '',
+                      selectedVendor: notification.vendor || '',
+                      selectedInternalTechnicianForVendor: '',
+                      estimatedHours: 4,
+                      scheduledDate: '',
+                      scheduledTime: '',
+                      componentChecklist: notification.componentDetails?.split(', ').map(component => ({
+                        name: component.trim(),
+                        checked: true
+                      })) || []
+                    });
+        } else {
+          setIsFromHOApproval(false);
+          setWorkOrderData({
+            title: notification.title,
+            description: notification.message,
+            priority: notification.priority,
+            technicianType: 'internal',
+            selectedInternalTechnician: '',
+            selectedVendor: '',
+            selectedInternalTechnicianForVendor: '',
+            estimatedHours: 4,
+            scheduledDate: '',
+            scheduledTime: ''
+          });
+        }
         setShowCreateWorkOrderModal(true);
         break;
       case 'View Equipment':
@@ -324,6 +389,12 @@ const PageNotifications = () => {
       case 'Verify Backup':
         setShowActionModal(true);
         break;
+      case 'View Work Order':
+        navigate('/work-orders');
+        break;
+      case 'Track Progress':
+        navigate('/work-orders');
+        break;
       default:
         console.log(`Action ${action} not implemented yet`);
     }
@@ -361,6 +432,7 @@ const PageNotifications = () => {
     console.log('Creating work order:', workOrderData);
     alert('Task berhasil dibuat!');
     setShowCreateWorkOrderModal(false);
+    setIsFromHOApproval(false);
     setWorkOrderData({
       title: '',
       description: '',
@@ -377,6 +449,7 @@ const PageNotifications = () => {
 
   const handleCancelCreateWorkOrder = () => {
     setShowCreateWorkOrderModal(false);
+    setIsFromHOApproval(false);
     setWorkOrderData({
       title: '',
       description: '',
@@ -430,6 +503,8 @@ const PageNotifications = () => {
       case 'Close Task': return <XCircle className="w-4 h-4" />;
       case 'View Log': return <FileCheck className="w-4 h-4" />;
       case 'Verify Backup': return <CheckCircle2 className="w-4 h-4" />;
+      case 'View Work Order': return <FileText className="w-4 h-4" />;
+      case 'Track Progress': return <Activity className="w-4 h-4" />;
       default: return <Activity className="w-4 h-4" />;
     }
   };
@@ -452,6 +527,9 @@ const PageNotifications = () => {
         return 'bg-purple-50 text-purple-600 hover:bg-purple-100';
       case 'Close Task':
         return 'bg-red-50 text-red-600 hover:bg-red-100';
+      case 'View Work Order':
+      case 'Track Progress':
+        return 'bg-gray-50 text-gray-600 hover:bg-gray-100';
       default:
         return 'bg-blue-50 text-blue-600 hover:bg-blue-100';
     }
@@ -475,7 +553,7 @@ const PageNotifications = () => {
           </div>
 
           {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-6">
             <div className="bg-white p-6 rounded-lg shadow-sm">
               <div className="flex items-center">
                 <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
@@ -514,11 +592,23 @@ const PageNotifications = () => {
 
             <div className="bg-white p-6 rounded-lg shadow-sm">
               <div className="flex items-center">
+                <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                  <CheckCircle className="w-6 h-6 text-purple-600" />
+                </div>
+                <div className="ml-4">
+                  <div className="text-2xl font-bold text-gray-800">2</div>
+                  <div className="text-sm text-gray-600">HO Approved</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white p-6 rounded-lg shadow-sm">
+              <div className="flex items-center">
                 <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
                   <Bell className="w-6 h-6 text-blue-600" />
                 </div>
                 <div className="ml-4">
-                  <div className="text-2xl font-bold text-gray-800">6</div>
+                  <div className="text-2xl font-bold text-gray-800">8</div>
                   <div className="text-sm text-gray-600">Total Notifications</div>
                 </div>
               </div>
@@ -527,7 +617,7 @@ const PageNotifications = () => {
 
           {/* Filters */}
           <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
               {/* Search */}
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -630,6 +720,18 @@ const PageNotifications = () => {
                                 Technician: {notification.technician}
                               </div>
                             )}
+                            {notification.type === 'HO Approval Approved' && notification.lastMaintenanceBy && (
+                              <div className="flex items-center">
+                                <UserPlus className="w-4 h-4 mr-1" />
+                                Last Maintenance: {notification.lastMaintenanceBy}
+                              </div>
+                            )}
+                            {notification.type === 'HO Approval Approved' && notification.vendor && (
+                              <div className="flex items-center">
+                                <Wrench className="w-4 h-4 mr-1" />
+                                Vendor: {notification.vendor}
+                              </div>
+                            )}
                           </div>
 
                           <div className="flex flex-wrap items-center gap-2 mb-4">
@@ -642,6 +744,16 @@ const PageNotifications = () => {
                             {notification.workOrder && (
                               <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
                                 {notification.workOrder}
+                              </span>
+                            )}
+                            {notification.type === 'HO Approval Approved' && notification.estimatedCost && (
+                              <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                {notification.estimatedCost}
+                              </span>
+                            )}
+                            {notification.type === 'HO Approval Approved' && notification.componentDetails && (
+                              <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                {notification.componentDetails}
                               </span>
                             )}
                           </div>
@@ -898,7 +1010,14 @@ const PageNotifications = () => {
 
                     {/* Technician Type Selection */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-3">Pilih Tipe Teknisi</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-3">
+                        Pilih Tipe Teknisi
+                        {isFromHOApproval && (
+                          <span className="ml-2 text-sm text-orange-600 font-normal">
+                            (Otomatis: Vendor + Teknisi Pendamping)
+                          </span>
+                        )}
+                      </label>
                       <div className="space-y-3">
                         <div className="flex items-center">
                           <input
@@ -908,9 +1027,10 @@ const PageNotifications = () => {
                             value="internal"
                             checked={workOrderData.technicianType === 'internal'}
                             onChange={(e) => setWorkOrderData({...workOrderData, technicianType: e.target.value})}
-                            className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                            disabled={isFromHOApproval}
+                            className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                           />
-                          <label htmlFor="internal-notif" className="ml-2 text-sm text-gray-700">
+                          <label htmlFor="internal-notif" className={`ml-2 text-sm ${isFromHOApproval ? 'text-gray-400' : 'text-gray-700'}`}>
                             Teknisi Internal
                           </label>
                         </div>
@@ -922,9 +1042,10 @@ const PageNotifications = () => {
                             value="vendor"
                             checked={workOrderData.technicianType === 'vendor'}
                             onChange={(e) => setWorkOrderData({...workOrderData, technicianType: e.target.value})}
-                            className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                            disabled={isFromHOApproval}
+                            className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                           />
-                          <label htmlFor="vendor-notif" className="ml-2 text-sm text-gray-700">
+                          <label htmlFor="vendor-notif" className={`ml-2 text-sm ${isFromHOApproval ? 'text-gray-400' : 'text-gray-700'}`}>
                             Vendor
                           </label>
                         </div>
@@ -936,10 +1057,12 @@ const PageNotifications = () => {
                             value="vendor-internal"
                             checked={workOrderData.technicianType === 'vendor-internal'}
                             onChange={(e) => setWorkOrderData({...workOrderData, technicianType: e.target.value})}
-                            className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                            disabled={isFromHOApproval}
+                            className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                           />
-                          <label htmlFor="vendor-internal-notif" className="ml-2 text-sm text-gray-700">
+                          <label htmlFor="vendor-internal-notif" className={`ml-2 text-sm ${isFromHOApproval ? 'text-gray-700 font-medium' : 'text-gray-700'}`}>
                             Vendor + Teknisi Pendamping
+                            {isFromHOApproval && <span className="ml-2 text-orange-600">(Dipilih Otomatis)</span>}
                           </label>
                         </div>
                       </div>
@@ -1005,6 +1128,72 @@ const PageNotifications = () => {
                               <option key={technician} value={technician}>{technician}</option>
                             ))}
                           </select>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Component Replacement Checklist - Only for HO Approval */}
+                    {isFromHOApproval && (
+                      <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                        <h4 className="text-lg font-semibold text-orange-800 mb-4">Riwayat Checklist dari Teknisi Sebelumnya</h4>
+                        
+                        {/* Technician History Info */}
+                        <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                            </svg>
+                            <span className="text-sm font-medium text-blue-800">Teknisi: {actionData?.technician || 'N/A'}</span>
+                          </div>
+                          <div className="flex items-center space-x-2 mb-2">
+                            <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            <span className="text-sm font-medium text-blue-800">Tanggal: {actionData?.date || 'N/A'}</span>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            <span className="text-sm font-medium text-blue-800">Status: {actionData?.status || 'N/A'}</span>
+                          </div>
+                        </div>
+
+                        {/* Component Checklist from Previous Technician */}
+                        <div className="space-y-3">
+                          <h5 className="text-md font-semibold text-orange-700 mb-3">Komponen yang Diminta untuk Diganti:</h5>
+                          {(workOrderData.componentChecklist || []).map((component, index) => (
+                            <div key={index} className="flex items-center space-x-3 p-3 bg-white rounded-lg border border-orange-200">
+                              <div className="flex-shrink-0">
+                                <div className="w-6 h-6 bg-orange-100 rounded-full flex items-center justify-center">
+                                  <span className="text-xs font-bold text-orange-600">{index + 1}</span>
+                                </div>
+                              </div>
+                              <div className="flex-1">
+                                <div className="text-sm font-medium text-gray-800">{component.name}</div>
+                                <div className="text-xs text-gray-500 mt-1">
+                                  Status: <span className="font-medium text-orange-600">Diminta untuk Diganti</span>
+                                </div>
+                              </div>
+                              <div className="flex-shrink-0">
+                                <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Notes from Previous Technician */}
+                        {actionData?.notes && (
+                          <div className="mt-4 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                            <h5 className="text-sm font-semibold text-yellow-800 mb-2">Catatan dari Teknisi:</h5>
+                            <p className="text-sm text-yellow-700">{actionData.notes}</p>
+                          </div>
+                        )}
+
+                        <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+                          <p className="text-sm text-blue-800">
+                            <strong>Catatan:</strong> Checklist ini berdasarkan permintaan teknisi sebelumnya yang sudah disetujui HO. Vendor akan mengganti komponen sesuai dengan daftar yang sudah disetujui.
+                          </p>
                         </div>
                       </div>
                     )}

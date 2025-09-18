@@ -44,18 +44,6 @@ const PageTeknisi = () => {
   const [showUpdateStockModal, setShowUpdateStockModal] = useState(false);
   const [selectedItemForUpdate, setSelectedItemForUpdate] = useState(null);
   
-  // HO Approval states
-  const [showHOApprovalModal, setShowHOApprovalModal] = useState(false);
-  const [selectedTaskForHOApproval, setSelectedTaskForHOApproval] = useState(null);
-  const [hoApprovalData, setHoApprovalData] = useState({
-    approvalStatus: 'pending', // pending, approved, rejected
-    approvalNotes: '',
-    selectedVendor: '',
-    approvedBy: '',
-    approvalDate: '',
-    estimatedCost: '',
-    vendorContact: ''
-  });
   
   // Review & Validation states
   const [showReviewModal, setShowReviewModal] = useState(false);
@@ -67,9 +55,9 @@ const PageTeknisi = () => {
     componentRecommendations: [],
     followUpAction: 'none', // none, schedule_replacement, order_parts, escalate
     reviewedBy: '',
-    reviewDate: '',
-    reviewAction: 'send_to_ho' // send_to_ho, mark_completed
+    reviewDate: ''
   });
+  const [markCompleted, setMarkCompleted] = useState(false);
 
   // Add Work Order form states
   const [newWorkOrder, setNewWorkOrder] = useState({
@@ -82,7 +70,7 @@ const PageTeknisi = () => {
     dueDate: '',
     estimatedHours: 4,
     description: '',
-    technicianType: 'internal',
+    technicianType: 'vendor-internal',
     selectedInternalTechnician: '',
     selectedVendor: '',
     selectedInternalTechnicianForVendor: ''
@@ -234,15 +222,6 @@ const PageTeknisi = () => {
         ],
         followUpAction: 'schedule_replacement'
       },
-      hoApproval: {
-        status: 'approved',
-        approvedBy: 'Manager HO',
-        approvalDate: '2025-08-15 16:00:00',
-        approvalNotes: 'Approved untuk penggantian HDD DVR sesuai rekomendasi ABH',
-        selectedVendor: 'PT Teknik Mandiri',
-        estimatedCost: 'Rp 2.500.000',
-        vendorContact: '08123456789'
-      }
     },
     {
       id: 'TA-2025-004',
@@ -386,15 +365,6 @@ const PageTeknisi = () => {
         ],
         followUpAction: 'schedule_replacement'
       },
-      hoApproval: {
-        status: 'pending',
-        approvedBy: null,
-        approvalDate: null,
-        approvalNotes: '',
-        selectedVendor: '',
-        estimatedCost: '',
-        vendorContact: ''
-      }
     },
     {
       id: 'TA-2025-007',
@@ -453,15 +423,6 @@ const PageTeknisi = () => {
         ],
         followUpAction: 'order_parts'
       },
-      hoApproval: {
-        status: 'approved',
-        approvedBy: 'Manager HO',
-        approvalDate: '2025-08-12 18:00:00',
-        approvalNotes: 'Approved untuk penggantian piston ring dan kapasitor motor sesuai rekomendasi ABH',
-        selectedVendor: 'CV Jaya Abadi',
-        estimatedCost: 'Rp 3.200.000',
-        vendorContact: '08123456790'
-      }
     }
   ];
 
@@ -682,11 +643,19 @@ const PageTeknisi = () => {
       dueDate: '',
       estimatedHours: 4,
       description: '',
-      technicianType: 'internal',
+      technicianType: 'vendor-internal',
       selectedInternalTechnician: '',
       selectedVendor: '',
       selectedInternalTechnicianForVendor: ''
     });
+    // Reset radio button "Pembuatan Work Order" di review modal
+    const createWorkOrderRadio = document.getElementById('createWorkOrder');
+    const markCompletedRadio = document.getElementById('markCompleted');
+    if (createWorkOrderRadio && markCompletedRadio) {
+      createWorkOrderRadio.checked = false;
+      markCompletedRadio.checked = true;
+      setMarkCompleted(true);
+    }
   };
 
   const handleCancelAdd = () => {
@@ -701,11 +670,19 @@ const PageTeknisi = () => {
       dueDate: '',
       estimatedHours: 4,
       description: '',
-      technicianType: 'internal',
+      technicianType: 'vendor-internal',
       selectedInternalTechnician: '',
       selectedVendor: '',
       selectedInternalTechnicianForVendor: ''
     });
+    // Reset radio button "Pembuatan Work Order" di review modal
+    const createWorkOrderRadio = document.getElementById('createWorkOrder');
+    const markCompletedRadio = document.getElementById('markCompleted');
+    if (createWorkOrderRadio && markCompletedRadio) {
+      createWorkOrderRadio.checked = false;
+      markCompletedRadio.checked = true;
+      setMarkCompleted(true);
+    }
   };
 
   // Component Request Functions
@@ -817,6 +794,7 @@ const PageTeknisi = () => {
   // Review & Validation Functions
   const handleReviewWork = (workOrder) => {
     setSelectedTaskForReview(workOrder);
+    setMarkCompleted(false);
     setReviewData({
       reviewStatus: workOrder.review?.status || 'pending',
       reviewNotes: workOrder.review?.reviewNotes || '',
@@ -824,8 +802,7 @@ const PageTeknisi = () => {
       componentRecommendations: workOrder.review?.componentRecommendations || [],
       followUpAction: workOrder.review?.followUpAction || 'none',
       reviewedBy: workOrder.review?.reviewedBy || '',
-      reviewDate: workOrder.review?.reviewDate || '',
-      reviewAction: 'send_to_ho'
+      reviewDate: workOrder.review?.reviewDate || ''
     });
     setShowReviewModal(true);
   };
@@ -833,15 +810,18 @@ const PageTeknisi = () => {
   const handleSubmitReview = () => {
     // Simulate submitting review
     console.log('Submitting review:', reviewData);
+    console.log('Mark as completed:', markCompleted);
     
-    if (reviewData.reviewAction === 'send_to_ho') {
-      alert('Review berhasil dikirim ke HO untuk approval!');
-    } else if (reviewData.reviewAction === 'mark_completed') {
-      alert('Review berhasil diselesaikan!');
+    let message = 'Review berhasil diselesaikan!';
+    if (markCompleted) {
+      message += ' Task telah ditandai sebagai selesai.';
     }
+    
+    alert(message);
     
     setShowReviewModal(false);
     setSelectedTaskForReview(null);
+    setMarkCompleted(false);
     setReviewData({
       reviewStatus: 'pending',
       reviewNotes: '',
@@ -849,14 +829,14 @@ const PageTeknisi = () => {
       componentRecommendations: [],
       followUpAction: 'none',
       reviewedBy: '',
-      reviewDate: '',
-      reviewAction: 'send_to_ho'
+      reviewDate: ''
     });
   };
 
   const handleCancelReview = () => {
     setShowReviewModal(false);
     setSelectedTaskForReview(null);
+    setMarkCompleted(false);
     setReviewData({
       reviewStatus: 'pending',
       reviewNotes: '',
@@ -864,8 +844,7 @@ const PageTeknisi = () => {
       componentRecommendations: [],
       followUpAction: 'none',
       reviewedBy: '',
-      reviewDate: '',
-      reviewAction: 'send_to_ho'
+      reviewDate: ''
     });
   };
 
@@ -905,14 +884,6 @@ const PageTeknisi = () => {
     }
   };
 
-  const getHOApprovalStatusColor = (status) => {
-    switch (status) {
-      case 'approved': return 'text-green-600 bg-green-100';
-      case 'rejected': return 'text-red-600 bg-red-100';
-      case 'pending': return 'text-yellow-600 bg-yellow-100';
-      default: return 'text-gray-600 bg-gray-100';
-    }
-  };
 
   const getFollowUpActionText = (action) => {
     switch (action) {
@@ -930,57 +901,6 @@ const PageTeknisi = () => {
     alert(`PDF report untuk ${workOrder.id} berhasil didownload!`);
   };
 
-  // HO Approval Functions
-  const handleHOApproval = (workOrder) => {
-    setSelectedTaskForHOApproval(workOrder);
-    setHoApprovalData({
-      approvalStatus: workOrder.hoApproval?.status || 'pending',
-      approvalNotes: workOrder.hoApproval?.approvalNotes || '',
-      selectedVendor: workOrder.hoApproval?.selectedVendor || '',
-      approvedBy: workOrder.hoApproval?.approvedBy || '',
-      approvalDate: workOrder.hoApproval?.approvalDate || '',
-      estimatedCost: workOrder.hoApproval?.estimatedCost || '',
-      vendorContact: workOrder.hoApproval?.vendorContact || ''
-    });
-    setShowHOApprovalModal(true);
-  };
-
-  const handleSubmitHOApproval = () => {
-    // Simulate submitting HO approval
-    console.log('Submitting HO approval:', hoApprovalData);
-    
-    if (hoApprovalData.approvalStatus === 'approved') {
-      alert('Work Order berhasil disetujui oleh HO!');
-    } else if (hoApprovalData.approvalStatus === 'rejected') {
-      alert('Work Order ditolak oleh HO!');
-    }
-    
-    setShowHOApprovalModal(false);
-    setSelectedTaskForHOApproval(null);
-    setHoApprovalData({
-      approvalStatus: 'pending',
-      approvalNotes: '',
-      selectedVendor: '',
-      approvedBy: '',
-      approvalDate: '',
-      estimatedCost: '',
-      vendorContact: ''
-    });
-  };
-
-  const handleCancelHOApproval = () => {
-    setShowHOApprovalModal(false);
-    setSelectedTaskForHOApproval(null);
-    setHoApprovalData({
-      approvalStatus: 'pending',
-      approvalNotes: '',
-      selectedVendor: '',
-      approvedBy: '',
-      approvalDate: '',
-      estimatedCost: '',
-      vendorContact: ''
-    });
-  };
 
   // Helper function to detect if notes indicate component replacement needed
   const needsReplacement = (notes) => {
@@ -1351,23 +1271,6 @@ const PageTeknisi = () => {
                     </div>
                   )}
 
-                  {/* HO Approval Status */}
-                  {wo.status === 'Completed' && wo.review?.status === 'approved' && (
-                    <div className="mb-4">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-600">HO Approval</span>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getHOApprovalStatusColor(wo.hoApproval?.status || 'pending')}`}>
-                          {wo.hoApproval?.status === 'approved' ? 'Approved' : 
-                           wo.hoApproval?.status === 'rejected' ? 'Rejected' : 'Pending HO Approval'}
-                        </span>
-                      </div>
-                      {wo.hoApproval?.approvedBy && (
-                        <div className="text-xs text-gray-500 mt-1">
-                          Approved by: {wo.hoApproval.approvedBy}
-                        </div>
-                      )}
-                    </div>
-                  )}
 
                   {/* Dates */}
                   <div className="space-y-1 text-sm text-gray-600 mb-4">
@@ -1404,15 +1307,6 @@ const PageTeknisi = () => {
                       >
                         <CheckCircle className="w-3 h-3 inline mr-1" />
                         Review
-                      </button>
-                    )}
-                    {wo.status === 'Completed' && wo.review?.status === 'approved' && (
-                      <button 
-                        onClick={() => handleHOApproval(wo)}
-                        className="px-2 py-1.5 text-xs bg-orange-50 text-orange-600 rounded-lg hover:bg-orange-100 transition-colors font-medium"
-                      >
-                        <Users className="w-3 h-3 inline mr-1" />
-                        HO
                       </button>
                     )}
                     <button 
@@ -1778,64 +1672,6 @@ const PageTeknisi = () => {
                       </div>
                     )}
 
-                    {/* HO Approval Information */}
-                    {selectedWorkOrder.status === 'Completed' && selectedWorkOrder.review?.status === 'approved' && selectedWorkOrder.hoApproval && (
-                      <div>
-                        <h3 className="text-lg font-semibold text-gray-800 mb-4">HO Approval</h3>
-                        <div className="space-y-3">
-                          <div className="flex items-center justify-between">
-                            <span className="text-gray-600">Status Approval:</span>
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getHOApprovalStatusColor(selectedWorkOrder.hoApproval.status)}`}>
-                              {selectedWorkOrder.hoApproval.status === 'approved' ? 'Approved' : 
-                               selectedWorkOrder.hoApproval.status === 'rejected' ? 'Rejected' : 'Pending HO Approval'}
-                            </span>
-                          </div>
-                          {selectedWorkOrder.hoApproval.approvedBy && (
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Approved By:</span>
-                              <span className="font-medium">{selectedWorkOrder.hoApproval.approvedBy}</span>
-                            </div>
-                          )}
-                          {selectedWorkOrder.hoApproval.approvalDate && (
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Approval Date:</span>
-                              <span className="font-medium">{formatDate(selectedWorkOrder.hoApproval.approvalDate)}</span>
-                            </div>
-                          )}
-                          {selectedWorkOrder.hoApproval.approvalNotes && (
-                            <div>
-                              <span className="text-gray-600 block mb-1">Approval Notes:</span>
-                              <p className="text-sm text-gray-700 bg-gray-50 p-3 rounded-lg">{selectedWorkOrder.hoApproval.approvalNotes}</p>
-                            </div>
-                          )}
-                          {selectedWorkOrder.hoApproval.status === 'approved' && (
-                            <div className="bg-green-50 p-4 rounded-lg">
-                              <h4 className="font-medium text-green-800 mb-2">Vendor Assignment</h4>
-                              <div className="space-y-2">
-                                {selectedWorkOrder.hoApproval.selectedVendor && (
-                                  <div className="flex justify-between">
-                                    <span className="text-green-700">Selected Vendor:</span>
-                                    <span className="font-medium text-green-800">{selectedWorkOrder.hoApproval.selectedVendor}</span>
-                                  </div>
-                                )}
-                                {selectedWorkOrder.hoApproval.estimatedCost && (
-                                  <div className="flex justify-between">
-                                    <span className="text-green-700">Estimated Cost:</span>
-                                    <span className="font-medium text-green-800">{selectedWorkOrder.hoApproval.estimatedCost}</span>
-                                  </div>
-                                )}
-                                {selectedWorkOrder.hoApproval.vendorContact && (
-                                  <div className="flex justify-between">
-                                    <span className="text-green-700">Vendor Contact:</span>
-                                    <span className="font-medium text-green-800">{selectedWorkOrder.hoApproval.vendorContact}</span>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
                   </div>
 
                   {/* Action Buttons */}
@@ -1868,15 +1704,6 @@ const PageTeknisi = () => {
                         Review Work
                       </button>
                     )}
-                    {selectedWorkOrder.status === 'Completed' && selectedWorkOrder.review?.status === 'approved' && (
-                      <button 
-                        onClick={() => handleHOApproval(selectedWorkOrder)}
-                        className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
-                      >
-                        <Users className="w-4 h-4 mr-2 inline" />
-                        HO Approval
-                      </button>
-                    )}
                     <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
                       <Upload className="w-4 h-4 mr-2 inline" />
                       Upload Files
@@ -1889,11 +1716,11 @@ const PageTeknisi = () => {
 
           {/* Add Task Modal */}
           {showAddModal && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
               <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
                 <div className="p-6 border-b">
                   <div className="flex items-center justify-between">
-                    <h2 className="text-xl font-semibold text-gray-800">Add New Task</h2>
+                    <h2 className="text-xl font-semibold text-gray-800">Add New Work Order</h2>
                     <button
                       onClick={() => setShowAddModal(false)}
                       className="text-gray-400 hover:text-gray-600"
@@ -1913,7 +1740,7 @@ const PageTeknisi = () => {
                           value={newWorkOrder.title}
                           onChange={(e) => setNewWorkOrder({...newWorkOrder, title: e.target.value})}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          placeholder="Enter task title"
+                          placeholder="Enter work order title"
                         />
                       </div>
                       <div>
@@ -1984,77 +1811,8 @@ const PageTeknisi = () => {
                       </div>
                     </div>
 
-                    {/* Technician Type Selection */}
-                      <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-3">Pilih Tipe Teknisi</label>
-                      <div className="space-y-3">
-                        <div className="flex items-center">
-                        <input
-                            type="radio"
-                            id="internal"
-                            name="technicianType"
-                            value="internal"
-                            checked={newWorkOrder.technicianType === 'internal'}
-                            onChange={(e) => setNewWorkOrder({...newWorkOrder, technicianType: e.target.value})}
-                            className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
-                          />
-                          <label htmlFor="internal" className="ml-2 text-sm text-gray-700">
-                            Teknisi Internal
-                          </label>
-                      </div>
-                        <div className="flex items-center opacity-50 cursor-not-allowed">
-                          <input
-                            type="radio"
-                            id="vendor"
-                            name="technicianType"
-                            value="vendor"
-                            disabled
-                            className="w-4 h-4 text-gray-400 border-gray-300 cursor-not-allowed"
-                          />
-                          <label htmlFor="vendor" className="ml-2 text-sm text-gray-500 cursor-not-allowed">
-                            Vendor
-                            <span className="ml-2 px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded-full">
-                              Coming Soon
-                            </span>
-                          </label>
-                        </div>
-                        <div className="flex items-center opacity-50 cursor-not-allowed">
-                          <input
-                            type="radio"
-                            id="vendor-internal"
-                            name="technicianType"
-                            value="vendor-internal"
-                            disabled
-                            className="w-4 h-4 text-gray-400 border-gray-300 cursor-not-allowed"
-                          />
-                          <label htmlFor="vendor-internal" className="ml-2 text-sm text-gray-500 cursor-not-allowed">
-                            Vendor + Teknisi Pendamping
-                            <span className="ml-2 px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded-full">
-                              Coming Soon
-                            </span>
-                          </label>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Technician Selection based on type */}
-                    {newWorkOrder.technicianType === 'internal' && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Pilih Teknisi Internal</label>
-                        <select 
-                          value={newWorkOrder.selectedInternalTechnician}
-                          onChange={(e) => setNewWorkOrder({...newWorkOrder, selectedInternalTechnician: e.target.value})}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        >
-                          <option value="">Pilih Teknisi Internal</option>
-                          {internalTechnicians.map(technician => (
-                            <option key={technician} value={technician}>{technician}</option>
-                          ))}
-                        </select>
-                      </div>
-                    )}
-
-                    {newWorkOrder.technicianType === 'vendor' && (
+                    {/* Vendor + Teknisi Pendamping Selection */}
+                    <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Pilih Vendor</label>
                         <select 
@@ -2068,47 +1826,29 @@ const PageTeknisi = () => {
                           ))}
                         </select>
                       </div>
-                    )}
-
-                    {newWorkOrder.technicianType === 'vendor-internal' && (
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">Pilih Vendor</label>
-                          <select 
-                            value={newWorkOrder.selectedVendor}
-                            onChange={(e) => setNewWorkOrder({...newWorkOrder, selectedVendor: e.target.value})}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          >
-                            <option value="">Pilih Vendor</option>
-                            {vendors.map(vendor => (
-                              <option key={vendor} value={vendor}>{vendor}</option>
-                            ))}
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">Teknisi Pendamping</label>
-                          <select 
-                            value={newWorkOrder.selectedInternalTechnicianForVendor}
-                            onChange={(e) => setNewWorkOrder({...newWorkOrder, selectedInternalTechnicianForVendor: e.target.value})}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          >
-                            <option value="">Pilih Teknisi Pendamping</option>
-                            {internalTechnicians.map(technician => (
-                              <option key={technician} value={technician}>{technician}</option>
-                            ))}
-                          </select>
-                        </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Teknisi Pendamping</label>
+                        <select 
+                          value={newWorkOrder.selectedInternalTechnicianForVendor}
+                          onChange={(e) => setNewWorkOrder({...newWorkOrder, selectedInternalTechnicianForVendor: e.target.value})}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        >
+                          <option value="">Pilih Teknisi Pendamping</option>
+                          {internalTechnicians.map(technician => (
+                            <option key={technician} value={technician}>{technician}</option>
+                          ))}
+                        </select>
                       </div>
-                    )}
+                    </div>
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Due Date</label>
-                        <input
+                      <input
                         type="datetime-local"
                         value={newWorkOrder.dueDate}
                         onChange={(e) => setNewWorkOrder({...newWorkOrder, dueDate: e.target.value})}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        />
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
                     </div>
 
                     <div>
@@ -2118,7 +1858,7 @@ const PageTeknisi = () => {
                         value={newWorkOrder.description}
                         onChange={(e) => setNewWorkOrder({...newWorkOrder, description: e.target.value})}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="Enter task description"
+                        placeholder="Enter work order description"
                       />
                     </div>
                   </div>
@@ -2134,7 +1874,7 @@ const PageTeknisi = () => {
                       onClick={handleAddWorkOrder}
                       className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                     >
-                      Create Task
+                      Create Work Order
                     </button>
                   </div>
                 </div>
@@ -2925,34 +2665,41 @@ const PageTeknisi = () => {
                           />
                         </div>
 
-                        {/* Review Action */}
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-3">Tindakan Review</label>
-                          <div className="space-y-2">
-                            <label className="flex items-center">
+                        {/* Review Actions */}
+                        <div className="bg-gray-50 rounded-lg p-4">
+                          <h4 className="text-lg font-semibold text-gray-800 mb-4">Aksi Review</h4>
+                          <div className="space-y-3">
+                            <div className="flex items-center">
                               <input
                                 type="radio"
+                                id="markCompleted"
                                 name="reviewAction"
-                                value="send_to_ho"
-                                checked={reviewData.reviewAction === 'send_to_ho'}
-                                onChange={(e) => setReviewData({...reviewData, reviewAction: e.target.value})}
-                                className="mr-2"
+                                value="completed"
+                                checked={markCompleted}
+                                onChange={(e) => setMarkCompleted(e.target.checked)}
+                                className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
                               />
-                              <span className="text-sm">Kirim ke HO untuk Approval</span>
-                            </label>
-                            <label className="flex items-center">
+                              <label htmlFor="markCompleted" className="ml-2 text-sm text-gray-700">
+                                Tandai Selesai
+                              </label>
+                            </div>
+                            <div className="flex items-center">
                               <input
                                 type="radio"
+                                id="createWorkOrder"
                                 name="reviewAction"
-                                value="mark_completed"
-                                checked={reviewData.reviewAction === 'mark_completed'}
-                                onChange={(e) => setReviewData({...reviewData, reviewAction: e.target.value})}
-                                className="mr-2"
+                                value="workOrder"
+                                checked={!markCompleted}
+                                onChange={(e) => setMarkCompleted(!e.target.checked)}
+                                className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
                               />
-                              <span className="text-sm">Tandai sebagai Selesai</span>
-                            </label>
+                              <label htmlFor="createWorkOrder" className="ml-2 text-sm text-gray-700">
+                                Pembuatan Work Order
+                              </label>
+                            </div>
                           </div>
                         </div>
+
                       </div>
                     </div>
                   </div>
@@ -2978,12 +2725,22 @@ const PageTeknisi = () => {
                       >
                         Cancel
                       </button>
-                      <button
-                        onClick={handleSubmitReview}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                      >
-                        {reviewData.reviewAction === 'send_to_ho' ? 'Kirim ke HO' : 'Tandai Selesai'}
-                      </button>
+                      {!markCompleted && (
+                        <button
+                          onClick={() => setShowAddModal(true)}
+                          className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                        >
+                          Add Order
+                        </button>
+                      )}
+                      {markCompleted && (
+                        <button
+                          onClick={handleSubmitReview}
+                          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                        >
+                          Selesaikan Review
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -2991,175 +2748,6 @@ const PageTeknisi = () => {
             </div>
           )}
 
-          {/* HO Approval Modal */}
-          {showHOApprovalModal && selectedTaskForHOApproval && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-              <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-                <div className="p-6 border-b">
-                  <div className="flex items-center justify-between">
-                    <h2 className="text-xl font-semibold text-gray-800">HO Approval</h2>
-                    <button
-                      onClick={handleCancelHOApproval}
-                      className="text-gray-400 hover:text-gray-600"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                  <p className="text-gray-600 mt-1">Task: {selectedTaskForHOApproval.id} - {selectedTaskForHOApproval.title}</p>
-                  <p className="text-sm text-gray-500">Teknisi: {selectedTaskForHOApproval.technician}</p>
-                </div>
-
-                <div className="p-6">
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* Review Summary */}
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-800 mb-4">Review Summary</h3>
-                      <div className="space-y-3">
-                        <div className="bg-gray-50 p-4 rounded-lg">
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-gray-600">Review Status:</span>
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getReviewStatusColor(selectedTaskForHOApproval.review?.status || 'pending')}`}>
-                              {selectedTaskForHOApproval.review?.status === 'approved' ? 'Approved' : 
-                               selectedTaskForHOApproval.review?.status === 'rejected' ? 'Rejected' : 'Pending Review'}
-                            </span>
-                          </div>
-                          {selectedTaskForHOApproval.review?.reviewedBy && (
-                            <div className="text-sm text-gray-600">
-                              Reviewed by: {selectedTaskForHOApproval.review.reviewedBy}
-                            </div>
-                          )}
-                          {selectedTaskForHOApproval.review?.reviewNotes && (
-                            <div className="text-sm text-gray-600 mt-2">
-                              Notes: {selectedTaskForHOApproval.review.reviewNotes}
-                            </div>
-                          )}
-                        </div>
-                        
-                        {selectedTaskForHOApproval.review?.componentRecommendations && selectedTaskForHOApproval.review.componentRecommendations.length > 0 && (
-                          <div className="bg-yellow-50 p-4 rounded-lg">
-                            <h4 className="font-medium text-yellow-800 mb-2">Component Recommendations</h4>
-                            <div className="space-y-2">
-                              {selectedTaskForHOApproval.review.componentRecommendations.map((rec, index) => (
-                                <div key={index} className="text-sm">
-                                  <div className="font-medium text-yellow-800">{rec.component}</div>
-                                  <div className="text-yellow-700">{rec.recommendation}</div>
-                                  <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(rec.priority)}`}>
-                                    {rec.priority} Priority
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* HO Approval Form */}
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-800 mb-4">HO Approval Form</h3>
-                      <div className="space-y-4">
-                        {/* Approval Status */}
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">Approval Decision</label>
-                          <select
-                            value={hoApprovalData.approvalStatus}
-                            onChange={(e) => setHoApprovalData({...hoApprovalData, approvalStatus: e.target.value})}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          >
-                            <option value="pending">Pending Approval</option>
-                            <option value="approved">Approve</option>
-                            <option value="rejected">Reject</option>
-                          </select>
-                        </div>
-
-                        {/* Approval Notes */}
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">Approval Notes</label>
-                          <textarea
-                            rows={3}
-                            value={hoApprovalData.approvalNotes}
-                            onChange={(e) => setHoApprovalData({...hoApprovalData, approvalNotes: e.target.value})}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            placeholder="Masukkan catatan approval..."
-                          />
-                        </div>
-
-                        {/* Vendor Selection - Only show when approved */}
-                        {hoApprovalData.approvalStatus === 'approved' && (
-                          <div className="space-y-4">
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-2">Pilih Vendor</label>
-                              <select
-                                value={hoApprovalData.selectedVendor}
-                                onChange={(e) => setHoApprovalData({...hoApprovalData, selectedVendor: e.target.value})}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                              >
-                                <option value="">Pilih Vendor</option>
-                                {vendors.map(vendor => (
-                                  <option key={vendor} value={vendor}>{vendor}</option>
-                                ))}
-                              </select>
-                            </div>
-
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-2">Estimated Cost</label>
-                              <input
-                                type="text"
-                                value={hoApprovalData.estimatedCost}
-                                onChange={(e) => setHoApprovalData({...hoApprovalData, estimatedCost: e.target.value})}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                placeholder="Rp 0"
-                              />
-                            </div>
-
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-2">Vendor Contact</label>
-                              <input
-                                type="text"
-                                value={hoApprovalData.vendorContact}
-                                onChange={(e) => setHoApprovalData({...hoApprovalData, vendorContact: e.target.value})}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                placeholder="Nomor telepon vendor"
-                              />
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Approved By */}
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">Approved By</label>
-                          <input
-                            type="text"
-                            value={hoApprovalData.approvedBy}
-                            onChange={(e) => setHoApprovalData({...hoApprovalData, approvedBy: e.target.value})}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            placeholder="Nama Manager HO"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Action Buttons */}
-                  <div className="mt-6 flex justify-end space-x-4">
-                    <button
-                      onClick={handleCancelHOApproval}
-                      className="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={handleSubmitHOApproval}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                    >
-                      {hoApprovalData.approvalStatus === 'approved' ? 'Approve & Assign Vendor' : 
-                       hoApprovalData.approvalStatus === 'rejected' ? 'Reject' : 'Submit Decision'}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </div>

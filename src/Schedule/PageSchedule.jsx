@@ -27,6 +27,7 @@ const PageSchedule = () => {
   const [listView, setListView] = useState(false);
   const [selectedSchedule, setSelectedSchedule] = useState(null);
   const [showCreateTaskModal, setShowCreateTaskModal] = useState(false);
+  const [showAddScheduleModal, setShowAddScheduleModal] = useState(false);
   
   // Form state for create task modal
   const [taskForm, setTaskForm] = useState({
@@ -41,6 +42,23 @@ const PageSchedule = () => {
     dueDate: '',
     dueTime: '',
     description: ''
+  });
+
+  // Form state for add schedule modal
+  const [scheduleForm, setScheduleForm] = useState({
+    title: '',
+    type: 'Emergency',
+    equipment: '',
+    location: '',
+    technician: '',
+    startDate: '',
+    endDate: '',
+    startTime: '08:00',
+    endTime: '12:00',
+    priority: 'High',
+    description: '',
+    reason: 'Breakdown',
+    createTask: true
   });
 
   // Sample data equipment (diambil dari PageEquipment)
@@ -348,6 +366,66 @@ const PageSchedule = () => {
     handleCloseCreateTask();
   };
 
+  // Add Schedule Functions
+  const handleAddSchedule = () => {
+    setScheduleForm({
+      title: '',
+      type: 'Emergency',
+      equipment: '',
+      location: '',
+      technician: '',
+      startDate: new Date().toISOString().split('T')[0],
+      endDate: new Date().toISOString().split('T')[0],
+      startTime: '08:00',
+      endTime: '12:00',
+      priority: 'High',
+      description: '',
+      reason: 'Breakdown',
+      createTask: true
+    });
+    setShowAddScheduleModal(true);
+  };
+
+  const handleCloseAddSchedule = () => {
+    setShowAddScheduleModal(false);
+    setScheduleForm({
+      title: '',
+      type: 'Emergency',
+      equipment: '',
+      location: '',
+      technician: '',
+      startDate: '',
+      endDate: '',
+      startTime: '08:00',
+      endTime: '12:00',
+      priority: 'High',
+      description: '',
+      reason: 'Breakdown',
+      createTask: true
+    });
+  };
+
+  const handleScheduleFormChange = (field, value) => {
+    setScheduleForm(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleSubmitAddSchedule = () => {
+    // Simulate adding new schedule
+    console.log('Adding new schedule:', scheduleForm);
+    
+    let message = `Schedule berhasil ditambahkan!\n\nTitle: ${scheduleForm.title}\nEquipment: ${scheduleForm.equipment}\nType: ${scheduleForm.type}\nPriority: ${scheduleForm.priority}\nDate: ${scheduleForm.startDate}`;
+    
+    if (scheduleForm.createTask) {
+      message += `\n\nTask juga berhasil dibuat untuk schedule ini!`;
+    }
+    
+    alert(message);
+    handleCloseAddSchedule();
+  };
+
   const days = getDaysInMonth(currentDate);
   const monthNames = [
     'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
@@ -415,6 +493,15 @@ const PageSchedule = () => {
               </div>
 
               <div className="flex items-center space-x-4">
+                {/* Add Schedule Button */}
+                <button 
+                  onClick={handleAddSchedule}
+                  className="flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Emergency Schedule
+                </button>
+                
                 {/* Export Button */}
                 <button className="flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors">
                   <Download className="w-4 h-4 mr-2" />
@@ -910,6 +997,223 @@ const PageSchedule = () => {
                     >
                       <Plus className="w-4 h-4 mr-2 inline" />
                       Create Task
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Add Emergency Schedule Modal */}
+          {showAddScheduleModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                <div className="p-6 border-b">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-xl font-semibold text-gray-800">Add Emergency Schedule</h2>
+                    <button
+                      onClick={handleCloseAddSchedule}
+                      className="text-gray-400 hover:text-gray-600"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  <p className="text-gray-600 mt-1">Tambahkan schedule emergency untuk equipment yang rusak</p>
+                </div>
+
+                <div className="p-6">
+                  <div className="space-y-4">
+                    {/* Title */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Title</label>
+                      <input
+                        type="text"
+                        value={scheduleForm.title}
+                        onChange={(e) => handleScheduleFormChange('title', e.target.value)}
+                        placeholder="Enter emergency schedule title"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                      />
+                    </div>
+
+                    {/* Type */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Type</label>
+                      <select
+                        value={scheduleForm.type}
+                        onChange={(e) => handleScheduleFormChange('type', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                      >
+                        <option value="Emergency">Emergency</option>
+                        <option value="Breakdown">Breakdown</option>
+                        <option value="Repair">Repair</option>
+                        <option value="Corrective">Corrective</option>
+                      </select>
+                    </div>
+
+                    {/* Equipment */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Equipment</label>
+                      <select
+                        value={scheduleForm.equipment}
+                        onChange={(e) => handleScheduleFormChange('equipment', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                      >
+                        <option value="">Pilih Equipment</option>
+                        {equipmentData.map((equipment) => (
+                          <option key={equipment.id} value={equipment.name}>{equipment.name} - {equipment.location}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Location */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Location</label>
+                      <select
+                        value={scheduleForm.location}
+                        onChange={(e) => handleScheduleFormChange('location', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                      >
+                        <option value="">Pilih Lokasi</option>
+                        {locations.map((location) => (
+                          <option key={location} value={location}>{location}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Technician */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Technician</label>
+                      <select
+                        value={scheduleForm.technician}
+                        onChange={(e) => handleScheduleFormChange('technician', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                      >
+                        <option value="">Pilih Teknisi</option>
+                        {technicians.map((technician) => (
+                          <option key={technician} value={technician}>{technician}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Priority */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Priority</label>
+                      <select
+                        value={scheduleForm.priority}
+                        onChange={(e) => handleScheduleFormChange('priority', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                      >
+                        <option value="High">High</option>
+                        <option value="Critical">Critical</option>
+                        <option value="Medium">Medium</option>
+                        <option value="Low">Low</option>
+                      </select>
+                    </div>
+
+                    {/* Reason */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Reason</label>
+                      <select
+                        value={scheduleForm.reason}
+                        onChange={(e) => handleScheduleFormChange('reason', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                      >
+                        <option value="Breakdown">Breakdown</option>
+                        <option value="Malfunction">Malfunction</option>
+                        <option value="Safety Issue">Safety Issue</option>
+                        <option value="Performance Issue">Performance Issue</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
+
+                    {/* Date and Time */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Start Date</label>
+                        <input
+                          type="date"
+                          value={scheduleForm.startDate}
+                          onChange={(e) => handleScheduleFormChange('startDate', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">End Date</label>
+                        <input
+                          type="date"
+                          value={scheduleForm.endDate}
+                          onChange={(e) => handleScheduleFormChange('endDate', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Start Time</label>
+                        <input
+                          type="time"
+                          value={scheduleForm.startTime}
+                          onChange={(e) => handleScheduleFormChange('startTime', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">End Time</label>
+                        <input
+                          type="time"
+                          value={scheduleForm.endTime}
+                          onChange={(e) => handleScheduleFormChange('endTime', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Description */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                      <textarea
+                        value={scheduleForm.description}
+                        onChange={(e) => handleScheduleFormChange('description', e.target.value)}
+                        rows={3}
+                        placeholder="Describe the emergency situation and required actions..."
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none"
+                      />
+                    </div>
+
+                    {/* Create Task Option */}
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <div className="flex items-center">
+                        <input
+                          type="checkbox"
+                          id="createTask"
+                          checked={scheduleForm.createTask}
+                          onChange={(e) => handleScheduleFormChange('createTask', e.target.checked)}
+                          className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                        />
+                        <label htmlFor="createTask" className="ml-2 text-sm text-blue-800">
+                          Langsung buat task untuk schedule ini
+                        </label>
+                      </div>
+                      <p className="text-xs text-blue-600 mt-1">
+                        Jika dicentang, task akan otomatis dibuat setelah schedule disimpan
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-6 flex justify-end space-x-4">
+                    <button
+                      onClick={handleCloseAddSchedule}
+                      className="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleSubmitAddSchedule}
+                      className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                    >
+                      <Plus className="w-4 h-4 mr-2 inline" />
+                      Add Emergency Schedule
                     </button>
                   </div>
                 </div>

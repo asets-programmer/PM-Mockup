@@ -23,8 +23,10 @@ import {
 } from 'lucide-react';
 import Navbar from '../komponen/Navbar';
 import Sidebar from '../komponen/Sidebar';
+import { useAuth } from '../auth/AuthContext';
 
 const PageTeknisi = () => {
+  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('All');
   const [selectedPriority, setSelectedPriority] = useState('All');
@@ -988,19 +990,22 @@ const PageTeknisi = () => {
               </div>
             </div>
 
-            <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
-              <div className="flex items-center">
-                <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                  <CheckCircle className="w-6 h-6 text-purple-600" />
-                </div>
-                <div className="ml-4">
-                  <div className="text-2xl font-bold text-gray-800">
-                    {workOrdersData.filter(wo => wo.status === 'Completed' && (wo.review?.status === 'pending' || !wo.review?.status)).length}
+            {/* Pending Review Stats - Only for Admin */}
+            {user?.role === 'admin' && (
+              <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
+                <div className="flex items-center">
+                  <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                    <CheckCircle className="w-6 h-6 text-purple-600" />
                   </div>
-                  <div className="text-sm text-gray-600">Pending Review</div>
+                  <div className="ml-4">
+                    <div className="text-2xl font-bold text-gray-800">
+                      {workOrdersData.filter(wo => wo.status === 'Completed' && (wo.review?.status === 'pending' || !wo.review?.status)).length}
+                    </div>
+                    <div className="text-sm text-gray-600">Pending Review</div>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Filters */}
@@ -1028,23 +1033,27 @@ const PageTeknisi = () => {
                   </button>
                 </div>
 
-                {/* Inventory Check Button */}
-                <button
-                  onClick={handleViewInventory}
-                  className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                >
-                  <Wrench className="w-4 h-4 mr-2" />
-                  Inventory
-                </button>
+                {/* Inventory Check Button - Only for Admin */}
+                {user?.role === 'admin' && (
+                  <button
+                    onClick={handleViewInventory}
+                    className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                  >
+                    <Wrench className="w-4 h-4 mr-2" />
+                    Inventory
+                  </button>
+                )}
 
-                {/* Add Task Button */}
-                <button
-                  onClick={() => setShowAddModal(true)}
-                  className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Task
-                </button>
+                {/* Add Task Button - Only for Admin */}
+                {user?.role === 'admin' && (
+                  <button
+                    onClick={() => setShowAddModal(true)}
+                    className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Task
+                  </button>
+                )}
               </div>
             </div>
 
@@ -1121,19 +1130,21 @@ const PageTeknisi = () => {
                 </select>
               </div>
 
-              {/* Review Status Filter */}
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">Review Status</label>
-                <select
-                  value={selectedReviewStatus}
-                  onChange={(e) => setSelectedReviewStatus(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  {reviewStatuses.map(status => (
-                    <option key={status} value={status}>{status}</option>
-                  ))}
-                </select>
-              </div>
+              {/* Review Status Filter - Only for Admin */}
+              {user?.role === 'admin' && (
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700">Review Status</label>
+                  <select
+                    value={selectedReviewStatus}
+                    onChange={(e) => setSelectedReviewStatus(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    {reviewStatuses.map(status => (
+                      <option key={status} value={status}>{status}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
 
             {/* Export Button & Filter Summary */}
@@ -1157,10 +1168,13 @@ const PageTeknisi = () => {
                     Reset Filter
                   </button>
                 )}
-                <button className="flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors">
-                  <Download className="w-4 h-4 mr-2" />
-                  Export Data
-                </button>
+                {/* Export Data Button - Only for Admin */}
+                {user?.role === 'admin' && (
+                  <button className="flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors">
+                    <Download className="w-4 h-4 mr-2" />
+                    Export Data
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -1185,13 +1199,16 @@ const PageTeknisi = () => {
                       >
                         <Eye className="w-4 h-4" />
                       </button>
-                      <button 
-                        onClick={() => handleEditWorkOrder(wo)}
-                        className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                        title="Edit Work Order"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </button>
+                      {/* Edit Button - Only for Admin */}
+                      {user?.role === 'admin' && (
+                        <button 
+                          onClick={() => handleEditWorkOrder(wo)}
+                          className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                          title="Edit Work Order"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                   </div>
 
@@ -1253,8 +1270,8 @@ const PageTeknisi = () => {
                     </div>
                   </div>
 
-                  {/* Review Status */}
-                  {wo.status === 'Completed' && (
+                  {/* Review Status - Only for Admin */}
+                  {wo.status === 'Completed' && user?.role === 'admin' && (
                     <div className="mb-4">
                       <div className="flex items-center justify-between">
                         <span className="text-sm text-gray-600">Review Status</span>
@@ -1300,7 +1317,8 @@ const PageTeknisi = () => {
                         Pause
                       </button>
                     )}
-                    {wo.status === 'Completed' && (
+                    {/* Review Button - Only for Admin */}
+                    {wo.status === 'Completed' && user?.role === 'admin' && (
                       <button 
                         onClick={() => handleReviewWork(wo)}
                         className="px-2 py-1.5 text-xs bg-purple-50 text-purple-600 rounded-lg hover:bg-purple-100 transition-colors font-medium"
@@ -1334,7 +1352,10 @@ const PageTeknisi = () => {
                       <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Prioritas</th>
                       <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Due Date</th>
                       <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Progress</th>
-                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Review Status</th>
+                      {/* Review Status Column - Only for Admin */}
+                      {user?.role === 'admin' && (
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Review Status</th>
+                      )}
                       <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Aksi</th>
                     </tr>
                   </thead>
@@ -1382,16 +1403,19 @@ const PageTeknisi = () => {
                             <span className="text-sm text-gray-500">-</span>
                           )}
                         </td>
-                        <td className="px-6 py-4">
-                          {wo.status === 'Completed' ? (
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getReviewStatusColor(wo.review?.status || 'pending')}`}>
-                              {wo.review?.status === 'approved' ? 'Approved' : 
-                               wo.review?.status === 'rejected' ? 'Rejected' : 'Pending Review'}
-                            </span>
-                          ) : (
-                            <span className="text-sm text-gray-500">-</span>
-                          )}
-                        </td>
+                        {/* Review Status Data - Only for Admin */}
+                        {user?.role === 'admin' && (
+                          <td className="px-6 py-4">
+                            {wo.status === 'Completed' ? (
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${getReviewStatusColor(wo.review?.status || 'pending')}`}>
+                                {wo.review?.status === 'approved' ? 'Approved' : 
+                                 wo.review?.status === 'rejected' ? 'Rejected' : 'Pending Review'}
+                              </span>
+                            ) : (
+                              <span className="text-sm text-gray-500">-</span>
+                            )}
+                          </td>
+                        )}
                         <td className="px-6 py-4">
                           <div className="flex space-x-2">
                             <button
@@ -1401,14 +1425,18 @@ const PageTeknisi = () => {
                             >
                               <Eye className="w-4 h-4" />
                             </button>
-                            <button 
-                              onClick={() => handleEditWorkOrder(wo)}
-                              className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                              title="Edit Work Order"
-                            >
-                              <Edit className="w-4 h-4" />
-                            </button>
-                            {wo.status === 'Completed' && (
+                            {/* Edit Button - Only for Admin */}
+                            {user?.role === 'admin' && (
+                              <button 
+                                onClick={() => handleEditWorkOrder(wo)}
+                                className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                                title="Edit Work Order"
+                              >
+                                <Edit className="w-4 h-4" />
+                              </button>
+                            )}
+                            {/* Review Button - Only for Admin */}
+                            {wo.status === 'Completed' && user?.role === 'admin' && (
                               <button 
                                 onClick={() => handleReviewWork(wo)}
                                 className="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
@@ -1676,13 +1704,16 @@ const PageTeknisi = () => {
 
                   {/* Action Buttons */}
                   <div className="mt-6 flex justify-end space-x-4">
-                    <button 
-                      onClick={() => handleEditWorkOrder(selectedWorkOrder)}
-                      className="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors"
-                    >
-                      <Edit className="w-4 h-4 mr-2 inline" />
-                      Edit
-                    </button>
+                    {/* Edit Button - Only for Admin */}
+                    {user?.role === 'admin' && (
+                      <button 
+                        onClick={() => handleEditWorkOrder(selectedWorkOrder)}
+                        className="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors"
+                      >
+                        <Edit className="w-4 h-4 mr-2 inline" />
+                        Edit
+                      </button>
+                    )}
                     {selectedWorkOrder.status === 'Open' && (
                       <button className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
                         <Play className="w-4 h-4 mr-2 inline" />
@@ -1714,8 +1745,8 @@ const PageTeknisi = () => {
             </div>
           )}
 
-          {/* Add Task Modal */}
-          {showAddModal && (
+          {/* Add Task Modal - Only for Admin */}
+          {showAddModal && user?.role === 'admin' && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
               <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
                 <div className="p-6 border-b">
@@ -1882,8 +1913,8 @@ const PageTeknisi = () => {
             </div>
           )}
 
-          {/* Edit Task Modal */}
-          {showEditModal && editingWorkOrder && (
+          {/* Edit Task Modal - Only for Admin */}
+          {showEditModal && editingWorkOrder && user?.role === 'admin' && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
               <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
                 <div className="p-6 border-b">
@@ -2224,8 +2255,8 @@ const PageTeknisi = () => {
             </div>
           )}
 
-          {/* Inventory Check Modal */}
-          {showInventoryModal && (
+          {/* Inventory Check Modal - Only for Admin */}
+          {showInventoryModal && user?.role === 'admin' && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
               <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] overflow-y-auto">
                 <div className="p-6 border-b">
@@ -2359,8 +2390,8 @@ const PageTeknisi = () => {
             </div>
           )}
 
-          {/* Update Stock Modal */}
-          {showUpdateStockModal && (
+          {/* Update Stock Modal - Only for Admin */}
+          {showUpdateStockModal && user?.role === 'admin' && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
               <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
                 <div className="p-6 border-b">
@@ -2440,8 +2471,8 @@ const PageTeknisi = () => {
             </div>
           )}
 
-          {/* Review & Validation Modal */}
-          {showReviewModal && selectedTaskForReview && (
+          {/* Review & Validation Modal - Only for Admin */}
+          {showReviewModal && selectedTaskForReview && user?.role === 'admin' && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
               <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] overflow-y-auto">
                 <div className="p-6 border-b">

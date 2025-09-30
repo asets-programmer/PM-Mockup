@@ -17,8 +17,10 @@ import {
 } from 'lucide-react';
 import Navbar from '../komponen/Navbar';
 import Sidebar from '../komponen/Sidebar';
+import { useAuth } from '../auth/AuthContext';
 
 const PageEquipment = () => {
+  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [selectedStatus, setSelectedStatus] = useState('All');
@@ -645,10 +647,13 @@ const PageEquipment = () => {
                     Reset Filter
                   </button>
                 )}
-                <button className="flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors">
-                  <Download className="w-4 h-4 mr-2" />
-                  Export Data
-                </button>
+                {/* Export Data Button - Only for Admin */}
+                {user?.role === 'admin' && (
+                  <button className="flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors">
+                    <Download className="w-4 h-4 mr-2" />
+                    Export Data
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -726,13 +731,16 @@ const PageEquipment = () => {
 
                 {/* Action Buttons */}
                 <div className="flex space-x-2 pt-2 border-t border-gray-100">
-                  <button 
-                    onClick={() => handleMaintenance(equipment)}
-                    className="flex-1 px-3 py-2 text-sm bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors font-medium"
-                  >
-                    <Wrench className="w-4 h-4 inline mr-1" />
-                    Maintenance
-                  </button>
+                  {/* Maintenance Button - Only for Admin */}
+                  {user?.role === 'admin' && (
+                    <button 
+                      onClick={() => handleMaintenance(equipment)}
+                      className="flex-1 px-3 py-2 text-sm bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors font-medium"
+                    >
+                      <Wrench className="w-4 h-4 inline mr-1" />
+                      Maintenance
+                    </button>
+                  )}
                   <button 
                     onClick={() => handleHistory(equipment)}
                     className="flex-1 px-3 py-2 text-sm bg-gray-50 text-gray-600 rounded-lg hover:bg-gray-100 transition-colors font-medium"
@@ -821,8 +829,8 @@ const PageEquipment = () => {
             </div>
           )}
 
-          {/* Maintenance Modal */}
-          {showMaintenanceModal && maintenanceEquipment && (
+          {/* Maintenance Modal - Only for Admin */}
+          {showMaintenanceModal && maintenanceEquipment && user?.role === 'admin' && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
               <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
                 <div className="p-6 border-b">
@@ -1062,8 +1070,8 @@ const PageEquipment = () => {
             </div>
           )}
 
-          {/* Maintenance Detail Modal */}
-          {showMaintenanceDetailModal && maintenanceEquipment && (
+          {/* Maintenance Detail Modal - Only for Admin */}
+          {showMaintenanceDetailModal && maintenanceEquipment && user?.role === 'admin' && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
               <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
                 <div className="p-6 border-b">

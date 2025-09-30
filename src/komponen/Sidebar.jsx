@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   BarChart3, 
   Activity, 
@@ -13,24 +13,37 @@ import {
   Briefcase
 } from 'lucide-react';
 import storiLogo from '../assets/Stori.jpg';
+import { useAuth } from '../auth/AuthContext';
 
 const Sidebar = () => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
   
   // Sidebar menu items
-  const menuItems = [
-    { icon: BarChart3, label: 'Dashboard', path: '/dashboard' },
-    { icon: Activity, label: 'Process Flow', path: '/process-flow' },
-    { icon: CheckSquare, label: 'Task', path: '/task' },
-    { icon: Briefcase, label: 'Work Orders', path: '/work-orders' },
-    { icon: Settings, label: 'Equipment', path: '/equipment' },
-    { icon: Bell, label: 'Notifications', path: '/notifications' },
-    { icon: BarChart3, label: 'Reports', path: '/reports' },
-    { icon: Calendar, label: 'Schedule', path: '/schedule' },
-    { icon: Users, label: 'Team', path: '/team' },
-    { icon: Settings, label: 'Settings', path: '/settings' },
-    { icon: LogOut, label: 'Logout', isLogout: true }
+  const allMenuItems = [
+    { icon: BarChart3, label: 'Dashboard', path: '/dashboard', roles: ['admin', 'teknisi'] },
+    { icon: Settings, label: 'Equipment', path: '/equipment', roles: ['admin', 'teknisi'] },
+    { icon: CheckSquare, label: 'Task', path: '/task', roles: ['admin', 'teknisi'] },
+    { icon: Activity, label: 'Process Flow', path: '/process-flow', roles: ['admin'] },
+    { icon: Briefcase, label: 'Work Orders', path: '/work-orders', roles: ['admin'] },
+    { icon: Bell, label: 'Notifications', path: '/notifications', roles: ['admin'] },
+    { icon: BarChart3, label: 'Reports', path: '/reports', roles: ['admin'] },
+    { icon: Calendar, label: 'Schedule', path: '/schedule', roles: ['admin'] },
+    { icon: Users, label: 'Team', path: '/team', roles: ['admin'] },
+    { icon: Settings, label: 'Settings', path: '/settings', roles: ['admin'] },
+    { icon: LogOut, label: 'Logout', isLogout: true, roles: ['admin', 'teknisi'] }
   ];
+
+  // Filter menu items based on user role
+  const menuItems = allMenuItems.filter(item => 
+    item.roles.includes(user?.role || '')
+  );
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
 
   return (
     <div className="w-64 bg-white shadow-lg">
@@ -57,13 +70,14 @@ const Sidebar = () => {
           
           if (item.isLogout) {
             return (
-              <div
+              <button
                 key={index}
-                className="flex items-center px-4 py-3.5 text-sm cursor-pointer transition-colors text-red-500 hover:bg-red-50"
+                onClick={handleLogout}
+                className="w-full flex items-center px-4 py-3.5 text-sm cursor-pointer transition-colors text-red-500 hover:bg-red-50"
               >
                 <Icon className="w-5 h-5 mr-3.5" />
                 {item.label}
-              </div>
+              </button>
             );
           }
 

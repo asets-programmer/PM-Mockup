@@ -118,11 +118,11 @@ export default function PropertyDashboard() {
           <div className="relative max-w-6xl mx-auto">
             <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
               <div className="bg-gray-100 p-8 flex items-center justify-center" style={{minHeight: '600px'}}>
-                        <div className="text-center">
-                  <div className="text-gray-400 text-2xl mb-4">📊</div>
-                  <p className="text-gray-500 text-lg">Dashboard Preview</p>
-                  <p className="text-gray-400 text-sm mt-2">PNG Image akan ditampilkan di sini</p>
-                </div>
+                <img 
+                  src="/assets/dashboard.png" 
+                  alt="Dashboard Preview" 
+                  className="max-w-full h-auto rounded-lg shadow-lg"
+                />
               </div>
             </div>
           </div>

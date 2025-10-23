@@ -12,7 +12,7 @@ import {
   CheckSquare,
   Briefcase
 } from 'lucide-react';
-import storiLogo from '../assets/Stori.jpg';
+import storiLogo from '/assets/Stori.jpg';
 import { useAuth } from '../auth/AuthContext';
 
 const Sidebar = () => {
@@ -22,16 +22,16 @@ const Sidebar = () => {
   
   // Sidebar menu items
   const allMenuItems = [
-    { icon: BarChart3, label: 'Dashboard', path: '/dashboard', roles: ['admin', 'teknisi'] },
-    { icon: Settings, label: 'Equipment', path: '/equipment', roles: ['admin', 'teknisi'] },
-    { icon: CheckSquare, label: 'Task', path: '/task', roles: ['admin', 'teknisi'] },
-    { icon: Activity, label: 'Process Flow', path: '/process-flow', roles: ['admin'] },
-    { icon: Briefcase, label: 'Work Orders', path: '/work-orders', roles: ['admin'] },
-    { icon: Bell, label: 'Notifications', path: '/notifications', roles: ['admin'] },
-    { icon: BarChart3, label: 'Reports', path: '/reports', roles: ['admin'] },
-    { icon: Calendar, label: 'Schedule', path: '/schedule', roles: ['admin'] },
-    { icon: Users, label: 'Team', path: '/team', roles: ['admin'] },
-    { icon: Settings, label: 'Settings', path: '/settings', roles: ['admin'] },
+    { icon: BarChart3, label: 'Dashboard', path: '/app/dashboard', roles: ['admin', 'teknisi'] },
+    { icon: Settings, label: 'Equipment', path: '/app/equipment', roles: ['admin', 'teknisi'] },
+    { icon: CheckSquare, label: 'Task', path: '/app/task', roles: ['admin', 'teknisi'] },
+    { icon: Activity, label: 'Process Flow', path: '/app/process-flow', roles: ['admin'] },
+    { icon: Briefcase, label: 'Work Orders', path: '/app/work-orders', roles: ['admin'] },
+    { icon: Bell, label: 'Notifications', path: '/app/notifications', roles: ['admin'] },
+    { icon: BarChart3, label: 'Reports', path: '/app/reports', roles: ['admin'] },
+    { icon: Calendar, label: 'Schedule', path: '/app/schedule', roles: ['admin'] },
+    { icon: Users, label: 'Team', path: '/app/team', roles: ['admin'] },
+    { icon: Settings, label: 'Settings', path: '/app/settings', roles: ['admin'] },
     { icon: LogOut, label: 'Logout', isLogout: true, roles: ['admin', 'teknisi'] }
   ];
 
@@ -66,7 +66,7 @@ const Sidebar = () => {
       <nav className="mt-4">
         {menuItems.map((item, index) => {
           const Icon = item.icon;
-          const isActive = location.pathname === item.path || (location.pathname === '/' && item.path === '/dashboard');
+          const isActive = location.pathname === item.path || (location.pathname === '/app' && item.path === '/app/dashboard');
           
           if (item.isLogout) {
             return (

@@ -47,7 +47,7 @@ export const AuthProvider = ({ children }) => {
     
     // Teknisi can only access equipment and task pages
     if (user.role === 'teknisi') {
-      return path === '/equipment' || path === '/task' || path === '/dashboard'
+      return path === '/app/equipment' || path === '/app/task' || path === '/app/dashboard'
     }
     
     return false

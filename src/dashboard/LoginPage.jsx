@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
+import StoriLogo from '/assets/Stori.jpg'
 import { useNavigate } from 'react-router-dom'
-import { useAuth } from './AuthContext'
+import { useAuth } from '../stori_demo/auth/AuthContext'
 
 const LoginPage = () => {
   const [username, setUsername] = useState('')
@@ -19,12 +20,22 @@ const LoginPage = () => {
     await new Promise(resolve => setTimeout(resolve, 1000))
 
     // Check credentials
-    if (username === 'abh' && password === 'password') {
-      login({ username: 'abh', role: 'admin', name: 'Administrator' })
-      navigate('/dashboard')
-    } else if (username === 'teknisi' && password === 'password') {
-      login({ username: 'teknisi', role: 'teknisi', name: 'Teknisi' })
-      navigate('/dashboard')
+    if (username === 'abhstori' && password === 'password') {
+      login({ username: 'abhstori', role: 'admin', name: 'Administrator' })
+      navigate('/app/dashboard')
+    } else if (username === 'teknisistori' && password === 'password') {
+      login({ username: 'teknisistori', role: 'teknisi', name: 'Teknisi' })
+      navigate('/app/dashboard')
+    } else if (username === 'abhpertare' && password === 'password') {
+      // Login untuk pertare menggunakan localStorage langsung
+      const pertareUser = { username: 'abhpertare', role: 'admin', name: 'Administrator Pertare' }
+      localStorage.setItem('pertare_user', JSON.stringify(pertareUser))
+      navigate('/pertare/dashboard')
+    } else if (username === 'teknisipertare' && password === 'password') {
+      // Login untuk pertare menggunakan localStorage langsung
+      const pertareUser = { username: 'teknisipertare', role: 'teknisi', name: 'Teknisi Pertare' }
+      localStorage.setItem('pertare_user', JSON.stringify(pertareUser))
+      navigate('/pertare/dashboard')
     } else {
       setError('Username atau password salah')
     }
@@ -38,11 +49,11 @@ const LoginPage = () => {
         <div className="bg-white rounded-2xl shadow-xl p-8">
           {/* Logo/Header */}
           <div className="text-center mb-8">
-            <div className="mx-auto h-16 w-16 bg-indigo-600 rounded-full flex items-center justify-center mb-4">
-              <svg className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
+            <img
+              src={StoriLogo}
+              alt="Stori"
+              className="mx-auto h-16 w-16 rounded-full object-cover mb-4"
+            />
             <h2 className="text-3xl font-bold text-gray-900">Preventive Maintenance</h2>
             <p className="mt-2 text-sm text-gray-600">Silakan masuk ke akun Anda</p>
           </div>
@@ -110,8 +121,12 @@ const LoginPage = () => {
           <div className="mt-8 p-4 bg-gray-50 rounded-lg">
             <h3 className="text-sm font-medium text-gray-700 mb-2">Demo Credentials:</h3>
             <div className="text-xs text-gray-600 space-y-1">
-              <div><strong>Admin:</strong> abh / password</div>
-              <div><strong>Teknisi:</strong> teknisi / password</div>
+              <div><strong>Admin Stori:</strong> abhstori / password</div>
+              <div><strong>Teknisi Stori:</strong> teknisistori / password</div>
+              <div className="mt-2 pt-2 border-t border-gray-200">
+                <div><strong>Admin Pertare:</strong> abhpertare / password</div>
+                <div><strong>Teknisi Pertare:</strong> teknisipertare / password</div>
+              </div>
             </div>
           </div>
         </div>

@@ -3,12 +3,14 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import './App.css'
 import { AuthProvider, useAuth } from './stori_demo/auth/AuthContext'
 import { AuthProvider as PertareAuthProvider, useAuth as usePertareAuth } from './pertare/auth/AuthContext'
+import { LanguageProvider } from './contexts/LanguageContext'
 import LoginPage from './dashboard/LoginPage'
 import ProtectedRoute from './stori_demo/auth/ProtectedRoute'
 import PertareProtectedRoute from './pertare/auth/ProtectedRoute'
 
 // Lazy load components for code splitting
 const PropertyDashboard = React.lazy(() => import('./dashboard/dash'))
+const AIDocumentGenerator = React.lazy(() => import('./dashboard/AI Document Generator'))
 const Dashboard = React.lazy(() => import('./stori_demo/dashboard_stori/Dashboard'))
 const PageEquipment = React.lazy(() => import('./stori_demo/equipment/PageEquipment'))
 const PageNotifications = React.lazy(() => import('./stori_demo/notifications/PageNotifications'))
@@ -43,13 +45,15 @@ const LoadingSpinner = () => (
 
 function App() {
   return (
-    <AuthProvider>
-      <Router>
-        <div className="App">
-          <AppRoutes />
-        </div>
-      </Router>
-    </AuthProvider>
+    <LanguageProvider>
+      <AuthProvider>
+        <Router>
+          <div className="App">
+            <AppRoutes />
+          </div>
+        </Router>
+      </AuthProvider>
+    </LanguageProvider>
   )
 }
 
@@ -63,6 +67,10 @@ const AppRoutes = () => {
         <Route 
           path="/" 
           element={<PropertyDashboard />}
+        />
+        <Route 
+          path="/ai-document-generator" 
+          element={<AIDocumentGenerator />}
         />
         <Route 
           path="/app" 

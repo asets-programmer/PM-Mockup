@@ -7,7 +7,32 @@ export default function PropertyDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [activeDropdown, setActiveDropdown] = useState(null);
   const [language, setLanguage] = useState('ENG');
+  const [displayedText, setDisplayedText] = useState('');
+  const [currentIndex, setCurrentIndex] = useState(0);
   const navigate = useNavigate();
+
+  const fullText = "STORI\nSystem Monitoring\nBuilt for Insight";
+
+  // Typing animation effect with smooth loop
+  useEffect(() => {
+    if (currentIndex < fullText.length) {
+      const timeout = setTimeout(() => {
+        setDisplayedText(prev => prev + fullText[currentIndex]);
+        setCurrentIndex(prev => prev + 1);
+      }, 80); // Faster typing speed
+
+      return () => clearTimeout(timeout);
+    } else {
+      // When typing is complete, wait 3 seconds then smoothly restart
+      const restartTimeout = setTimeout(() => {
+        // Smooth fade out effect
+        setDisplayedText('');
+        setCurrentIndex(0);
+      }, 3000);
+
+      return () => clearTimeout(restartTimeout);
+    }
+  }, [currentIndex, fullText]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -237,10 +262,20 @@ export default function PropertyDashboard() {
         ></div>
         {/* Content */}
         <div className="relative z-10">
-        <div className="max-w-7xl mx-auto px-4 pt-32 pb-20 text-center">
-          <h1 className="text-5xl font-bold text-white mb-4">
-          STORI <br /> System Monitoring <br />Built for <span className="text-white">Insight</span>
-          </h1>
+        <div className="max-w-7xl mx-auto px-4 pt-20 pb-20 text-center">
+          <div className="mb-4 min-h-[200px] flex flex-col items-center justify-center">
+            <div className="whitespace-pre-line transition-all duration-300 ease-in-out text-center">
+              <div className="text-6xl font-bold text-white">
+                {displayedText.split('\n')[0]}
+                <span className="animate-pulse">|</span>
+              </div>
+              {displayedText.split('\n').slice(1).map((line, index) => (
+                <div key={index} className="text-4xl font-semibold text-white mt-2">
+                  {line}
+                </div>
+              ))}
+            </div>
+          </div>
           <p className="text-xl text-indigo-100 mb-8">
             STORI is the smart solution for organizations that need real-time performance tracking and asset visibility.<br />
             Stay informed, improve efficiency, and make smarter decisions effortlessly.
@@ -277,13 +312,30 @@ export default function PropertyDashboard() {
                     <p className="text-gray-600 text-sm">Ask anything about</p>
                     <p className="text-gray-900 font-semibold text-lg">Maintenance & Operations</p>
                   </div>
-                  <button className="text-white px-6 py-3 rounded-lg font-semibold hover:opacity-90 transition-colors flex items-center shadow-sm" style={{backgroundColor: '#3730a3'}}>
+                </div>
+              </div>
+              
+              {/* Input Placeholder */}
+              <div className="mt-6">
+                <div className="relative">
+                  <input 
+                    type="text" 
+                    placeholder="Ask anything about maintenance & operations..." 
+                    className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-600 bg-gray-50"
+                    disabled
+                  />
+                  <button 
+                    onClick={() => navigate('/login')}
+                    className="absolute right-2 top-1/2 transform -translate-y-1/2 text-white px-4 py-2 rounded-md font-semibold text-sm hover:opacity-90 transition-colors flex items-center shadow-sm" 
+                    style={{backgroundColor: '#3730a3'}}
+                  >
                     Login to Chat
                     <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                     </svg>
                   </button>
                 </div>
+                <p className="text-gray-500 text-xs mt-2">Login required to send messages</p>
               </div>
             </div>
           </div>
@@ -576,7 +628,7 @@ export default function PropertyDashboard() {
                   />
                   <span className="text-2xl font-bold text-white">STORI</span>
                 </div>
-                <p className="text-purple-100 text-sm">System Monitoring Infrastructure</p>
+                <p className="text-purple-100 text-sm">System Monitoring</p>
               </div>
 
               {/* Contact Us */}
@@ -628,7 +680,7 @@ export default function PropertyDashboard() {
           {/* Bottom Border */}
           <div className="border-t border-purple-400/30 mt-8 pt-6">
             <div className="text-center text-sm text-purple-100">
-              © 2024 STORI. All rights reserved. | System Monitoring Infrastructure
+              © 2024 STORI. All rights reserved. | System Monitoring
             </div>
           </div>
         </div>

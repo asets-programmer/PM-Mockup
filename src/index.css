@@ -2,3 +2,40 @@
 @tailwind components;
 @tailwind utilities;
 
+@keyframes marquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-marquee {
+  animation: marquee 30s linear infinite;
+}
+
+/* Hide contact us text when navbar is compact */
+.navbar-compact .contact-text {
+  display: none;
+}
+
+/* Adjust navigation spacing when navbar is compact */
+.navbar-compact .nav-items-container {
+  gap: 0.5rem;
+}
+
+.navbar-compact .nav-items-container a {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+}
+
+/* Adjust right side spacing when navbar is compact */
+.navbar-compact .navbar-right-actions {
+  gap: 0.5rem;
+}
+
+.navbar-compact .navbar-right-actions > div {
+  margin-right: 0.25rem;
+}
+

@@ -2,46 +2,23 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Menu, X, ChevronDown, MessageSquare } from 'lucide-react';
 import storiLogo from '/assets/Stori.jpg';
+import earthGlobeIcon from '/assets/earth-globe.png';
 import { useLanguage } from '../contexts/LanguageContext';
 import { languageContent } from '../data/languageContent';
+import TextType from '../components/TextType';
 
 export default function PropertyDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [activeDropdown, setActiveDropdown] = useState(null);
-  const [displayedText, setDisplayedText] = useState('');
-  const [currentIndex, setCurrentIndex] = useState(0);
   const navigate = useNavigate();
   const { language, changeLanguage } = useLanguage();
   const content = languageContent[language];
 
-  const fullText = `${content.heroTitle}\n${content.heroSubtitle}\n${content.heroDescription}`;
-
-  // Typing animation effect with smooth loop
-  useEffect(() => {
-    if (currentIndex < fullText.length) {
-      const timeout = setTimeout(() => {
-        setDisplayedText(prev => prev + fullText[currentIndex]);
-        setCurrentIndex(prev => prev + 1);
-      }, 80); // Faster typing speed
-
-      return () => clearTimeout(timeout);
-    } else {
-      // When typing is complete, wait 3 seconds then smoothly restart
-      const restartTimeout = setTimeout(() => {
-        // Smooth fade out effect
-        setDisplayedText('');
-        setCurrentIndex(0);
-      }, 3000);
-
-      return () => clearTimeout(restartTimeout);
-    }
-  }, [currentIndex, fullText]);
-
-  // Reset typing animation when language changes
-  useEffect(() => {
-    setDisplayedText('');
-    setCurrentIndex(0);
-  }, [language]);
+  // STORI text array for typing animation
+  const storiTexts = [
+    "System Monitoring Built for Insight",
+    "System Monitoring Built for Insight"
+  ];
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -63,7 +40,7 @@ export default function PropertyDashboard() {
     <div className="min-h-screen bg-gray-50">
       {/* Navbar */}
       <nav className="bg-white border-b border-gray-200 fixed w-full z-30 top-0">
-        <div className="px-4 sm:px-6 lg:px-20 py-3">
+        <div className="px-6 py-3">
           <div className="flex items-center justify-between">
             {/* Logo */}
             <div className="flex items-center">
@@ -219,7 +196,7 @@ export default function PropertyDashboard() {
                   onClick={() => setActiveDropdown(activeDropdown === 'language' ? null : 'language')}
                   className="flex items-center text-gray-600 hover:text-gray-900 w-16 lg:w-20 justify-center text-sm lg:text-base"
                 >
-                  <span className="mr-1">🌐</span> {language} <ChevronDown className="ml-1 w-3 h-3 lg:w-4 lg:h-4" />
+                  <img src={earthGlobeIcon} alt="Language" className="w-4 h-4 mr-1" /> {language} <ChevronDown className="ml-1 w-3 h-3 lg:w-4 lg:h-4" />
                 </button>
                 
                 {/* Language Dropdown */}
@@ -372,18 +349,27 @@ export default function PropertyDashboard() {
         ></div>
         {/* Content */}
         <div className="relative z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 sm:pt-12 lg:pt-20 pb-12 sm:pb-16 lg:pb-20 text-center">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-0 pb-12 sm:pb-16 lg:pb-20 text-center">
           <div className="mb-4 min-h-[150px] sm:min-h-[180px] lg:min-h-[200px] flex flex-col items-center justify-center">
-            <div className="whitespace-pre-line transition-all duration-300 ease-in-out text-center">
-              <div className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white">
-                {displayedText.split('\n')[0]}
-                <span className="animate-pulse">|</span>
+            <div className="text-center">
+              {/* Static STORI text */}
+              <div className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-2">
+                STORI
               </div>
-              {displayedText.split('\n').slice(1).map((line, index) => (
-                <div key={index} className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-semibold text-white mt-1 sm:mt-2">
-                  {line}
-                </div>
-              ))}
+              {/* Animated subtitle */}
+              <TextType
+                text={["System Monitoring Built for Insight"]}
+                typingSpeed={80}
+                pauseDuration={2000}
+                deletingSpeed={40}
+                loop={true}
+                className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-semibold text-white"
+                showCursor={true}
+                cursorCharacter="|"
+                cursorClassName="text-white animate-pulse"
+                textColors={['#ffffff', '#e0e7ff', '#c7d2fe']}
+                initialDelay={500}
+              />
             </div>
           </div>
           <p className="text-base sm:text-lg lg:text-xl text-indigo-100 mb-6 sm:mb-8 px-4">
@@ -474,10 +460,12 @@ export default function PropertyDashboard() {
               {/* AI Maintenance Consultant */}
               <div className="bg-gradient-to-br from-cyan-500/20 to-cyan-600/20 backdrop-blur-sm rounded-lg sm:rounded-xl p-4 sm:p-6 hover:from-cyan-500/30 hover:to-cyan-600/30 transition-all cursor-pointer group border border-cyan-400/30">
                 <div className="flex items-center justify-between mb-3 sm:mb-4">
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-cyan-500 rounded-lg flex items-center justify-center">
-                    <svg className="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                    </svg>
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 bg-cyan-500 rounded-lg flex items-center justify-center">
+                    <img 
+                      src="/assets/AI_Maintenance_Consultant_Icon.jpg" 
+                      alt="AI Maintenance Consultant" 
+                      className="w-full h-full object-cover rounded-lg"
+                    />
                   </div>
                   <svg className="w-4 h-4 sm:w-5 sm:h-5 text-white group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -493,10 +481,12 @@ export default function PropertyDashboard() {
                 className="bg-gradient-to-br from-lime-500/20 to-lime-600/20 backdrop-blur-sm rounded-lg sm:rounded-xl p-4 sm:p-6 hover:from-lime-500/30 hover:to-lime-600/30 transition-all cursor-pointer group border border-lime-400/30"
               >
                 <div className="flex items-center justify-between mb-3 sm:mb-4">
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-lime-500 rounded-lg flex items-center justify-center">
-                    <svg className="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 bg-lime-500 rounded-lg flex items-center justify-center">
+                    <img 
+                      src="/assets/AI_Document_Generator.png" 
+                      alt="AI Document Generator" 
+                      className="w-full h-full object-cover rounded-lg"
+                    />
                   </div>
                   <svg className="w-4 h-4 sm:w-5 sm:h-5 text-white group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -509,11 +499,12 @@ export default function PropertyDashboard() {
               {/* Basic Maintenance Report Viewer */}
               <div className="bg-gradient-to-br from-pink-500/20 to-pink-600/20 backdrop-blur-sm rounded-lg sm:rounded-xl p-4 sm:p-6 hover:from-pink-500/30 hover:to-pink-600/30 transition-all cursor-pointer group border border-pink-400/30">
                 <div className="flex items-center justify-between mb-3 sm:mb-4">
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-pink-500 rounded-lg flex items-center justify-center">
-                    <svg className="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                    </svg>
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 bg-pink-500 rounded-lg flex items-center justify-center">
+                    <img 
+                      src="/assets/Basic_Maintenance_Report_Viewer.jpg" 
+                      alt="Basic Maintenance Report Viewer" 
+                      className="w-full h-full object-cover rounded-lg"
+                    />
                   </div>
                   <svg className="w-4 h-4 sm:w-5 sm:h-5 text-white group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -528,7 +519,7 @@ export default function PropertyDashboard() {
           {/* Advance STORI for All Business */}
           <div className="max-w-6xl mx-auto mb-12 sm:mb-16">
             <div className="text-center mb-6 sm:mb-8">
-              <div className="inline-flex items-center bg-gradient-to-r from-yellow-400 to-orange-500 text-white text-xs sm:text-sm font-bold px-3 sm:px-4 py-1 sm:py-2 rounded-full mb-4 shadow-lg">
+              <div className="inline-flex items-center text-white text-xs sm:text-sm font-bold px-3 sm:px-4 py-1 sm:py-2 rounded-full mb-4 shadow-lg" style={{background: 'linear-gradient(135deg, #FFD700, #FFA500, #FFD700)'}}>
                 <svg className="w-3 h-3 sm:w-4 sm:h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
                   <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                 </svg>
@@ -542,10 +533,12 @@ export default function PropertyDashboard() {
               {/* Dashboard Monitoring */}
               <div className="bg-gradient-to-br from-indigo-500/30 to-purple-600/30 backdrop-blur-sm rounded-xl p-6 hover:from-indigo-500/40 hover:to-purple-600/40 transition-all cursor-pointer group border border-indigo-400/40 shadow-xl">
                 <div className="flex items-center justify-between mb-4">
-                  <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center shadow-lg">
-                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                    </svg>
+                  <div className="w-20 h-20 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center shadow-lg">
+                    <img 
+                      src="/assets/Dashboard_Monitoring.png" 
+                      alt="Dashboard Monitoring" 
+                      className="w-full h-full object-cover rounded-lg"
+                    />
                   </div>
                   <svg className="w-5 h-5 text-white group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -558,10 +551,12 @@ export default function PropertyDashboard() {
               {/* Auto Scheduling & Smart Notification */}
               <div className="bg-gradient-to-br from-emerald-500/30 to-teal-600/30 backdrop-blur-sm rounded-xl p-6 hover:from-emerald-500/40 hover:to-teal-600/40 transition-all cursor-pointer group border border-emerald-400/40 shadow-xl">
                 <div className="flex items-center justify-between mb-4">
-                  <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-lg flex items-center justify-center shadow-lg">
-                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
+                  <div className="w-20 h-20 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-lg flex items-center justify-center shadow-lg">
+                    <img 
+                      src="/assets/Auto_Scheduling.png" 
+                      alt="Auto Scheduling & Smart Notification" 
+                      className="w-full h-full object-cover rounded-lg"
+                    />
                   </div>
                   <svg className="w-5 h-5 text-white group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -574,10 +569,12 @@ export default function PropertyDashboard() {
               {/* Task & Assignment Management */}
               <div className="bg-gradient-to-br from-violet-500/30 to-purple-600/30 backdrop-blur-sm rounded-xl p-6 hover:from-violet-500/40 hover:to-purple-600/40 transition-all cursor-pointer group border border-violet-400/40 shadow-xl">
                 <div className="flex items-center justify-between mb-4">
-                  <div className="w-12 h-12 bg-gradient-to-br from-violet-500 to-purple-600 rounded-lg flex items-center justify-center shadow-lg">
-                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                    </svg>
+                  <div className="w-20 h-20 bg-gradient-to-br from-violet-500 to-purple-600 rounded-lg flex items-center justify-center shadow-lg">
+                    <img 
+                      src="/assets/Task.png" 
+                      alt="Task & Assignment Management" 
+                      className="w-full h-full object-cover rounded-lg"
+                    />
                   </div>
                   <svg className="w-5 h-5 text-white group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -592,10 +589,12 @@ export default function PropertyDashboard() {
                 {/* Predictive Analytics Engine */}
                 <div className="bg-gradient-to-br from-amber-500/30 to-orange-600/30 backdrop-blur-sm rounded-xl p-6 hover:from-amber-500/40 hover:to-orange-600/40 transition-all cursor-pointer group w-full md:w-auto md:max-w-sm border border-amber-400/40 shadow-xl">
                   <div className="flex items-center justify-between mb-4">
-                    <div className="w-12 h-12 bg-gradient-to-br from-amber-500 to-orange-600 rounded-lg flex items-center justify-center shadow-lg">
-                      <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                      </svg>
+                    <div className="w-20 h-20 bg-gradient-to-br from-amber-500 to-orange-600 rounded-lg flex items-center justify-center shadow-lg">
+                      <img 
+                        src="/assets/Predictive.png" 
+                        alt="Predictive Analytics Engine" 
+                        className="w-full h-full object-cover rounded-lg"
+                      />
                     </div>
                     <svg className="w-5 h-5 text-white group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -608,10 +607,12 @@ export default function PropertyDashboard() {
                 {/* Integration Hub */}
                 <div className="bg-gradient-to-br from-rose-500/30 to-pink-600/30 backdrop-blur-sm rounded-xl p-6 hover:from-rose-500/40 hover:to-pink-600/40 transition-all cursor-pointer group w-full md:w-auto md:max-w-sm border border-rose-400/40 shadow-xl">
                   <div className="flex items-center justify-between mb-4">
-                    <div className="w-12 h-12 bg-gradient-to-br from-rose-500 to-pink-600 rounded-lg flex items-center justify-center shadow-lg">
-                      <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                      </svg>
+                    <div className="w-20 h-20 bg-gradient-to-br from-rose-500 to-pink-600 rounded-lg flex items-center justify-center shadow-lg">
+                      <img 
+                        src="/assets/Integration.png" 
+                        alt="Integration Hub" 
+                        className="w-full h-full object-cover rounded-lg"
+                      />
                     </div>
                     <svg className="w-5 h-5 text-white group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -685,41 +686,81 @@ export default function PropertyDashboard() {
       <div className="bg-white py-8 sm:py-12">
         <div className="max-w-7xl mx-auto px-4">
           <h3 className="text-center text-gray-500 mb-6 sm:mb-8 text-sm sm:text-base">{content.asSeenOn}</h3>
-          <div className="flex flex-wrap justify-center items-center gap-4 sm:gap-6 lg:gap-12 opacity-60">
-            <div className="w-24 h-16 sm:w-28 sm:h-20 lg:w-32 lg:h-24 flex items-center justify-center">
-              <img 
-                src="/assets/kompascom.png" 
-                alt="Kompas Logo" 
-                className="w-full h-full object-contain"
-              />
-            </div>
-            <div className="w-24 h-16 sm:w-28 sm:h-20 lg:w-32 lg:h-24 flex items-center justify-center">
-              <img 
-                src="/assets/indo_aktual.webp" 
-                alt="Indo Aktual Logo" 
-                className="w-full h-full object-contain"
-              />
-            </div>
-            <div className="w-24 h-16 sm:w-28 sm:h-20 lg:w-32 lg:h-24 flex items-center justify-center">
-              <img 
-                src="/assets/kabarbaru.webp" 
-                alt="Kabar Regional Logo" 
-                className="w-full h-full object-contain"
-              />
-            </div>
-            <div className="w-24 h-16 sm:w-28 sm:h-20 lg:w-32 lg:h-24 flex items-center justify-center">
-              <img 
-                src="/assets/kompasiana.png" 
-                alt="Kabar Regional Logo" 
-                className="w-full h-full object-contain"
-              />
-            </div>
-            <div className="w-24 h-16 sm:w-28 sm:h-20 lg:w-32 lg:h-24 flex items-center justify-center">
-              <img 
-                src="/assets/ieee.png" 
-                alt="Kabar Regional Logo" 
-                className="w-full h-full object-contain"
-              />
+          <div className="overflow-hidden">
+            <div className="flex items-center gap-8 sm:gap-12 lg:gap-16 opacity-60 animate-marquee">
+              {/* First set of logos */}
+              <div className="w-24 h-16 sm:w-28 sm:h-20 lg:w-32 lg:h-24 flex items-center justify-center flex-shrink-0">
+                <img 
+                  src="/assets/kompascom.png" 
+                  alt="Kompas Logo" 
+                  className="w-full h-full object-contain"
+                />
+              </div>
+              <div className="w-24 h-16 sm:w-28 sm:h-20 lg:w-32 lg:h-24 flex items-center justify-center flex-shrink-0">
+                <img 
+                  src="/assets/indo_aktual.webp" 
+                  alt="Indo Aktual Logo" 
+                  className="w-full h-full object-contain"
+                />
+              </div>
+              <div className="w-24 h-16 sm:w-28 sm:h-20 lg:w-32 lg:h-24 flex items-center justify-center flex-shrink-0">
+                <img 
+                  src="/assets/kabarbaru.webp" 
+                  alt="Kabar Regional Logo" 
+                  className="w-full h-full object-contain"
+                />
+              </div>
+              <div className="w-24 h-16 sm:w-28 sm:h-20 lg:w-32 lg:h-24 flex items-center justify-center flex-shrink-0">
+                <img 
+                  src="/assets/kompasiana.png" 
+                  alt="Kompasiana Logo" 
+                  className="w-full h-full object-contain"
+                />
+              </div>
+              <div className="w-24 h-16 sm:w-28 sm:h-20 lg:w-32 lg:h-24 flex items-center justify-center flex-shrink-0">
+                <img 
+                  src="/assets/ieee.png" 
+                  alt="IEEE Logo" 
+                  className="w-full h-full object-contain"
+                />
+              </div>
+              
+              {/* Duplicate set for seamless loop */}
+              <div className="w-24 h-16 sm:w-28 sm:h-20 lg:w-32 lg:h-24 flex items-center justify-center flex-shrink-0">
+                <img 
+                  src="/assets/kompascom.png" 
+                  alt="Kompas Logo" 
+                  className="w-full h-full object-contain"
+                />
+              </div>
+              <div className="w-24 h-16 sm:w-28 sm:h-20 lg:w-32 lg:h-24 flex items-center justify-center flex-shrink-0">
+                <img 
+                  src="/assets/indo_aktual.webp" 
+                  alt="Indo Aktual Logo" 
+                  className="w-full h-full object-contain"
+                />
+              </div>
+              <div className="w-24 h-16 sm:w-28 sm:h-20 lg:w-32 lg:h-24 flex items-center justify-center flex-shrink-0">
+                <img 
+                  src="/assets/kabarbaru.webp" 
+                  alt="Kabar Regional Logo" 
+                  className="w-full h-full object-contain"
+                />
+              </div>
+              <div className="w-24 h-16 sm:w-28 sm:h-20 lg:w-32 lg:h-24 flex items-center justify-center flex-shrink-0">
+                <img 
+                  src="/assets/kompasiana.png" 
+                  alt="Kompasiana Logo" 
+                  className="w-full h-full object-contain"
+                />
+              </div>
+              <div className="w-24 h-16 sm:w-28 sm:h-20 lg:w-32 lg:h-24 flex items-center justify-center flex-shrink-0">
+                <img 
+                  src="/assets/ieee.png" 
+                  alt="IEEE Logo" 
+                  className="w-full h-full object-contain"
+                />
+              </div>
             </div>
           </div>
         </div>

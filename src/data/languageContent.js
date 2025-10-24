@@ -5,7 +5,7 @@ export const languageContent = {
     solutions: "Solutions", 
     pricing: "Pricing",
     login: "Login",
-    contactUs: "Contact Us",
+    contactUs: "Contact us",
     
     // Hero Section
     heroTitle: "STORI",
@@ -65,7 +65,7 @@ export const languageContent = {
     
     // Footer
     asSeenOn: "As seen on",
-    contactUs: "CONTACT US",
+    contactUs: "Contact us",
     customerSupport: "CUSTOMER SUPPORT:",
     technicalSupport: "TECHNICAL SUPPORT:",
     officeLocations: "OFFICE LOCATIONS",
@@ -81,7 +81,7 @@ export const languageContent = {
     solutions: "Solusi",
     pricing: "Harga", 
     login: "Masuk",
-    contactUs: "Hubungi Kami",
+    contactUs: "Hubungi kami",
     
     // Hero Section
     heroTitle: "STORI",
@@ -141,7 +141,7 @@ export const languageContent = {
     
     // Footer
     asSeenOn: "Terlihat di",
-    contactUs: "HUBUNGI KAMI",
+    contactUs: "Hubungi kami",
     customerSupport: "DUKUNGAN PELANGGAN:",
     technicalSupport: "DUKUNGAN TEKNIS:",
     officeLocations: "LOKASI KANTOR",

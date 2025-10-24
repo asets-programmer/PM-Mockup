@@ -378,7 +378,7 @@ export default function PropertyDashboard() {
         {/* Content */}
         <div className="relative z-10">
         <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 xl:px-8 pt-6 sm:pt-8 lg:pt-12 pb-8 sm:pb-12 lg:pb-16 xl:pb-20 text-center">
-          <div className="mb-2 sm:mb-4 min-h-[120px] sm:min-h-[150px] lg:min-h-[180px] xl:min-h-[200px] flex flex-col items-center justify-center">
+          <div className="mb-2 sm:mb-4 min-h-[60px] sm:min-h-[80px] lg:min-h-[100px] xl:min-h-[120px] flex flex-col items-center justify-center">
             <div className="text-center">
               {/* Static STORI text */}
               <div className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-white mb-1 sm:mb-2">

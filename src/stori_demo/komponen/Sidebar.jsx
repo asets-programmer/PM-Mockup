@@ -119,7 +119,7 @@ const Sidebar = ({ minimized = false, onToggleMinimize }) => {
         </div>
         {!minimized && (
           <div>
-            <div className="font-bold text-white">STORI</div>
+            <div className="font-bold text-white" style={{ color: '#A5D388' }}>Stori</div>
             <div className="text-xs text-white/80 font-semibold">System Monitoring</div>
           </div>
         )}

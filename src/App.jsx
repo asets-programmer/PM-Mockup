@@ -11,7 +11,15 @@ import PertareProtectedRoute from './pertare/auth/ProtectedRoute'
 // Lazy load components for code splitting
 const PropertyDashboard = React.lazy(() => import('./dashboard/dash'))
 const AIDocumentGenerator = React.lazy(() => import('./dashboard/AI Document Generator'))
+const AIMaintenanceConsultant = React.lazy(() => import('./dashboard/AIMaintenanceConsultant'))
+const CameraBrandDetection = React.lazy(() => import('./dashboard/CameraBrandDetection'))
 const Dashboard = React.lazy(() => import('./stori_demo/dashboard_stori/Dashboard'))
+const CommandCenterDashboard = React.lazy(() => import('./stori_demo/dashboard_stori/CommandCenterDashboard'))
+const CommandCenterDemo = React.lazy(() => import('./stori_demo/dashboard_stori/CommandCenterDemo'))
+const SmartDripAI = React.lazy(() => import('./stori_demo/dashboard_stori/features/SmartDripAI'))
+const TouchscreenHealth = React.lazy(() => import('./stori_demo/dashboard_stori/features/TouchscreenHealth'))
+const ThermalWatch = React.lazy(() => import('./stori_demo/dashboard_stori/features/ThermalWatch'))
+const Sentinel = React.lazy(() => import('./stori_demo/dashboard_stori/features/Sentinel'))
 const PageEquipment = React.lazy(() => import('./stori_demo/equipment/PageEquipment'))
 const PageNotifications = React.lazy(() => import('./stori_demo/notifications/PageNotifications'))
 const PageProcessFlow = React.lazy(() => import('./stori_demo/proses flow/PageProcessFlow'))
@@ -73,6 +81,19 @@ const AppRoutes = () => {
           element={<AIDocumentGenerator />}
         />
         <Route 
+          path="/ai-maintenance-consultant" 
+          element={<AIMaintenanceConsultant />}
+        />
+        <Route 
+          path="/camera-brand-detection" 
+          element={<CameraBrandDetection />}
+        />
+        {/* Demo Route - No login required */}
+        <Route 
+          path="/app/demo" 
+          element={<CommandCenterDemo />}
+        />
+        <Route 
           path="/app" 
           element={
             user ? <Navigate to="/app/dashboard" replace /> : <Navigate to="/login" replace />
@@ -85,6 +106,47 @@ const AppRoutes = () => {
               <Dashboard />
             </ProtectedRoute>
           } 
+        />
+          <Route
+            path="/app/command-center" 
+            element={
+              <ProtectedRoute requiredRole={['manager', 'hq_admin']}>
+                <CommandCenterDashboard />
+              </ProtectedRoute>
+            }
+          />
+        {/* Feature Detail Pages */}
+        <Route
+          path="/app/features/smart-drip" 
+          element={
+            <ProtectedRoute requiredRole={['manager', 'hq_admin']}>
+              <SmartDripAI />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/app/features/touchscreen" 
+          element={
+            <ProtectedRoute requiredRole={['manager', 'hq_admin']}>
+              <TouchscreenHealth />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/app/features/thermalwatch" 
+          element={
+            <ProtectedRoute requiredRole={['manager', 'hq_admin']}>
+              <ThermalWatch />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/app/features/sentinel" 
+          element={
+            <ProtectedRoute requiredRole={['manager', 'hq_admin']}>
+              <Sentinel />
+            </ProtectedRoute>
+          }
         />
         <Route 
           path="/app/equipment" 
@@ -102,11 +164,11 @@ const AppRoutes = () => {
             </ProtectedRoute>
           } 
         />
-        {/* Admin only routes */}
+        {/* Notifications - All roles (but different access levels) */}
         <Route 
           path="/app/notifications" 
           element={
-            <ProtectedRoute requiredRole="admin">
+            <ProtectedRoute>
               <PageNotifications />
             </ProtectedRoute>
           } 
@@ -119,26 +181,29 @@ const AppRoutes = () => {
             </ProtectedRoute>
           } 
         />
+        {/* Reports - Manager and HQ Admin only */}
         <Route 
           path="/app/reports" 
           element={
-            <ProtectedRoute requiredRole="admin">
+            <ProtectedRoute requiredRole={['manager', 'hq_admin']}>
               <PageReports />
             </ProtectedRoute>
           } 
         />
+        {/* Schedule - Manager and HQ Admin only */}
         <Route 
           path="/app/schedule" 
           element={
-            <ProtectedRoute requiredRole="admin">
+            <ProtectedRoute requiredRole={['manager', 'hq_admin']}>
               <PageSchedule />
             </ProtectedRoute>
           } 
         />
+        {/* Settings - Manager and HQ Admin only */}
         <Route 
           path="/app/settings" 
           element={
-            <ProtectedRoute requiredRole="admin">
+            <ProtectedRoute requiredRole={['manager', 'hq_admin']}>
               <PageSettings />
             </ProtectedRoute>
           } 
@@ -146,16 +211,29 @@ const AppRoutes = () => {
         <Route 
           path="/app/team" 
           element={
-            <ProtectedRoute requiredRole="admin">
+            <ProtectedRoute requiredRole={['manager', 'hq_admin']}>
               <PageTeam />
             </ProtectedRoute>
           } 
         />
+        {/* Work Orders - Manager and HQ Admin only */}
         <Route 
           path="/app/work-orders" 
           element={
-            <ProtectedRoute requiredRole="admin">
+            <ProtectedRoute requiredRole={['manager', 'hq_admin']}>
               <PageWorkOrders />
+            </ProtectedRoute>
+          } 
+        />
+        {/* HQ Analytics - HQ Admin only */}
+        <Route 
+          path="/app/hq-analytics" 
+          element={
+            <ProtectedRoute requiredRole={['hq_admin']}>
+              <div className="p-6">
+                <h1 className="text-2xl font-bold">HQ Analytics</h1>
+                <p className="text-gray-600 mt-2">Multi-SPBU analytics dashboard (Coming Soon)</p>
+              </div>
             </ProtectedRoute>
           } 
         />

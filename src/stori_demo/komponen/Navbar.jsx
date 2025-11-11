@@ -30,6 +30,8 @@ const Navbar = () => {
       case '/app':
       case '/app/dashboard':
         return 'Preventive Maintenance Dashboard';
+      case '/app/command-center':
+        return 'STORI Command Center';
       case '/app/equipment':
         return 'Equipment Management';
       case '/app/notifications':

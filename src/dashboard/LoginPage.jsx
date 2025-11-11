@@ -19,12 +19,26 @@ const LoginPage = () => {
     // Simulate API call delay
     await new Promise(resolve => setTimeout(resolve, 1000))
 
-    // Check credentials
-    if (username === 'abhstori' && password === 'password') {
-      login({ username: 'abhstori', role: 'admin', name: 'Administrator' })
+    // Check credentials - STORI Access Levels
+    if (username === 'operator' && password === 'password') {
+      login({ username: 'operator', role: 'operator', name: 'Operator SPBU' })
+      navigate('/app/dashboard')
+    } else if (username === 'technician' && password === 'password') {
+      login({ username: 'technician', role: 'technician', name: 'Technician' })
+      navigate('/app/dashboard')
+    } else if (username === 'manager' && password === 'password') {
+      login({ username: 'manager', role: 'manager', name: 'Manager SPBU Kemang' })
+      navigate('/app/dashboard')
+    } else if (username === 'hqadmin' && password === 'password') {
+      login({ username: 'hqadmin', role: 'hq_admin', name: 'HQ Administrator' })
+      navigate('/app/dashboard')
+    } else if (username === 'abhstori' && password === 'password') {
+      // Legacy admin
+      login({ username: 'abhstori', role: 'manager', name: 'Administrator' })
       navigate('/app/dashboard')
     } else if (username === 'teknisistori' && password === 'password') {
-      login({ username: 'teknisistori', role: 'teknisi', name: 'Teknisi' })
+      // Legacy teknisi
+      login({ username: 'teknisistori', role: 'technician', name: 'Teknisi' })
       navigate('/app/dashboard')
     } else if (username === 'abhpertare' && password === 'password') {
       // Login untuk pertare menggunakan localStorage langsung
@@ -119,13 +133,28 @@ const LoginPage = () => {
 
           {/* Demo Credentials */}
           <div className="mt-6 sm:mt-8 p-3 sm:p-4 bg-gray-50 rounded-lg">
-            <h3 className="text-xs sm:text-sm font-medium text-gray-700 mb-2">Demo Credentials:</h3>
-            <div className="text-xs text-gray-600 space-y-1">
-              <div><strong>Admin Stori:</strong> abhstori / password</div>
-              <div><strong>Teknisi Stori:</strong> teknisistori / password</div>
-              <div className="mt-2 pt-2 border-t border-gray-200">
-                <div><strong>Admin Pertare:</strong> abhpertare / password</div>
-                <div><strong>Teknisi Pertare:</strong> teknisipertare / password</div>
+            <h3 className="text-xs sm:text-sm font-medium text-gray-700 mb-3">🔒 Access Levels & Demo Credentials:</h3>
+            <div className="text-xs text-gray-600 space-y-2">
+              <div className="p-2 bg-white rounded border-l-2 border-green-500">
+                <div><strong className="text-green-700">Operator:</strong> operator / password</div>
+                <div className="text-gray-500 text-xs mt-1">View alerts only • Acknowledge & report hazard</div>
+              </div>
+              <div className="p-2 bg-white rounded border-l-2 border-blue-500">
+                <div><strong className="text-blue-700">Technician:</strong> technician / password</div>
+                <div className="text-gray-500 text-xs mt-1">View + update tickets • Input resolution notes</div>
+              </div>
+              <div className="p-2 bg-white rounded border-l-2 border-orange-500">
+                <div><strong className="text-orange-700">Manager:</strong> manager / password</div>
+                <div className="text-gray-500 text-xs mt-1">Full control • Dispatch, mute alerts, analytics</div>
+              </div>
+              <div className="p-2 bg-white rounded border-l-2 border-purple-500">
+                <div><strong className="text-purple-700">HQ Admin:</strong> hqadmin / password</div>
+                <div className="text-gray-500 text-xs mt-1">Multi-SPBU analytics • Compare sites, manage rules globally</div>
+              </div>
+              <div className="mt-3 pt-3 border-t border-gray-200">
+                <div className="text-gray-500 text-xs mb-1">Legacy Credentials:</div>
+                <div><strong>Admin Stori:</strong> abhstori / password</div>
+                <div><strong>Teknisi Stori:</strong> teknisistori / password</div>
               </div>
             </div>
           </div>

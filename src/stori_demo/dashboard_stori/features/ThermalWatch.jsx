@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { Thermometer, AlertTriangle, CheckCircle, Clock, Activity, BarChart3, TrendingUp, Flame } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Thermometer, AlertTriangle, CheckCircle, Clock, Activity, BarChart3, TrendingUp, Flame, Trash2 } from 'lucide-react';
 import Sidebar from '../../komponen/Sidebar';
 import Navbar from '../../komponen/Navbar';
 import { useAuth } from '../../auth/AuthContext';
 import CameraSection from './CameraSection';
+import ThermalDetection from './ThermalDetection';
 import PrivacySecurityPanel from './privacy/PrivacySecurityPanel';
 import { encrypt_data, anonymize_event } from './privacy/privacyUtils';
 import { securityLog } from './privacy/securityLog';
@@ -23,35 +24,136 @@ const ThermalWatch = () => {
     { time: '16:00', dispenser1: 36, dispenser2: 35, dispenser3: 34, safeMax: 40 }
   ];
 
-  const originalThermalEvents = [
-    { id: 1, time: '14:32', location: 'Dispenser 1', temperature: 38, status: 'warning', action: 'Monitor closely', timestamp: new Date().toISOString() },
-    { id: 2, time: '13:15', location: 'Dispenser 2', temperature: 37, status: 'normal', action: 'OK', timestamp: new Date().toISOString() },
-    { id: 3, time: '12:45', location: 'Dispenser 3', temperature: 36, status: 'normal', action: 'OK', timestamp: new Date().toISOString() },
-    { id: 4, time: '11:20', location: 'Dispenser 1', temperature: 35, status: 'normal', action: 'OK', timestamp: new Date().toISOString() },
-    { id: 5, time: '10:05', location: 'Dispenser 2', temperature: 33, status: 'normal', action: 'OK', timestamp: new Date().toISOString() },
-  ];
+  // Key untuk localStorage
+  const STORAGE_KEY = 'thermal_events';
+  const EVENT_ID_KEY = 'thermal_event_id_counter';
 
-  // Process events through privacy layer
-  const [thermalEvents] = useState(() => {
-    return originalThermalEvents.map(event => {
-      const anonymized = anonymize_event(event);
-      const encrypted = encrypt_data({
-        originalLocation: event.location,
-        temperature: event.temperature,
-        timestamp: event.timestamp
-      });
-      
-      securityLog.logAnonymization('thermal_event', true);
-      securityLog.logEncryption('thermal_data', true);
-      privacyAPI.incrementAnonymized();
-      privacyAPI.incrementEncrypted();
-      
-      return {
-        ...event,
-        _privacy: { anonymized, encrypted, privacyCompliant: true }
-      };
-    });
+  // Load dari localStorage saat mount
+  const [thermalEvents, setThermalEvents] = useState(() => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        return parsed;
+      }
+    } catch (error) {
+      console.error('Error loading thermal events from localStorage:', error);
+    }
+    return [];
   });
+
+  // Counter untuk ID event - load dari localStorage
+  const eventIdRef = useRef((() => {
+    try {
+      const stored = localStorage.getItem(EVENT_ID_KEY);
+      if (stored) {
+        return parseInt(stored, 10);
+      }
+    } catch (error) {
+      console.error('Error loading event ID counter from localStorage:', error);
+    }
+    return 1;
+  })());
+
+  // Save ke localStorage setiap kali thermalEvents berubah
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(thermalEvents));
+      localStorage.setItem(EVENT_ID_KEY, eventIdRef.current.toString());
+    } catch (error) {
+      console.error('Error saving thermal events to localStorage:', error);
+    }
+  }, [thermalEvents]);
+
+  // Fungsi untuk menambahkan event baru dari ThermalDetection
+  const addThermalEvent = useCallback((eventData) => {
+    const { temperature, status, brand, confidence, reason } = eventData;
+    
+    // Hanya tambahkan event jika status WARNING atau DANGER
+    if (status !== 'WARNING' && status !== 'DANGER' && status !== 'TOO COLD') {
+      return;
+    }
+
+    // Format waktu
+    const now = new Date();
+    const time = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+    
+    // Tentukan location berdasarkan brand
+    const location = brand ? `${brand} Dispenser` : 'Unknown Dispenser';
+    
+    // Tentukan action berdasarkan status dan reason
+    let action = 'OK';
+    if (status === 'DANGER') {
+      action = reason || 'Immediate shutdown required';
+    } else if (status === 'WARNING') {
+      action = reason || 'Monitor closely';
+    } else if (status === 'TOO COLD') {
+      action = reason || 'Check system operation';
+    }
+
+    // Buat event object
+    const newEvent = {
+      id: eventIdRef.current++,
+      time: time,
+      location: location,
+      temperature: Math.round(temperature * 10) / 10, // Round to 1 decimal
+      status: status === 'DANGER' ? 'danger' : status === 'WARNING' ? 'warning' : 'normal',
+      action: action,
+      reason: reason || null, // Tambahkan reason ke event
+      timestamp: now.toISOString(),
+      brand: brand,
+      confidence: confidence
+    };
+
+    // Process through privacy layer
+    const anonymized = anonymize_event(newEvent);
+    const encrypted = encrypt_data({
+      originalLocation: newEvent.location,
+      temperature: newEvent.temperature,
+      timestamp: newEvent.timestamp
+    });
+    
+    securityLog.logAnonymization('thermal_event', true);
+    securityLog.logEncryption('thermal_data', true);
+    privacyAPI.incrementAnonymized();
+    privacyAPI.incrementEncrypted();
+    
+    const processedEvent = {
+      ...newEvent,
+      _privacy: { anonymized, encrypted, privacyCompliant: true }
+    };
+
+    // Tambahkan event baru ke state (prepend untuk menampilkan yang terbaru di atas)
+    setThermalEvents(prev => {
+      const updated = [processedEvent, ...prev].slice(0, 100); // Limit to 100 most recent events
+      return updated;
+    });
+    
+    // Update event ID counter di localStorage (useEffect akan handle save thermalEvents)
+    try {
+      localStorage.setItem(EVENT_ID_KEY, eventIdRef.current.toString());
+    } catch (error) {
+      console.error('Error saving event ID counter to localStorage:', error);
+    }
+  }, []);
+
+  // Fungsi untuk menghapus event
+  const deleteThermalEvent = useCallback((eventId) => {
+    setThermalEvents(prev => {
+      const filtered = prev.filter(event => event.id !== eventId);
+      return filtered;
+    });
+    
+    // Log deletion
+    securityLog.log({
+      type: 'access',
+      category: 'thermal_event',
+      severity: 'low',
+      message: `Thermal event deleted: ${eventId}`,
+      details: { eventId },
+      userId: user?.id || 'system'
+    });
+  }, [user]);
 
   // Initialize privacy/security logging
   useEffect(() => {
@@ -159,8 +261,11 @@ const ThermalWatch = () => {
             </div>
           </div>
 
+          {/* Thermal Detection System */}
+          <ThermalDetection onThermalEvent={addThermalEvent} />
+          
           {/* Camera Section */}
-          <CameraSection />
+          <CameraSection enableTeachableMachine={true} />
 
           {/* Privacy & Security Panel */}
           {/* <PrivacySecurityPanel /> */}
@@ -283,34 +388,72 @@ const ThermalWatch = () => {
                     <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Location</th>
                     <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Temperature</th>
                     <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Status</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Reason</th>
                     <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Action</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Delete</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {thermalEvents.map((event) => (
-                    <tr key={event.id} className="border-b border-gray-100 hover:bg-gray-50">
-                      <td className="py-3 px-4 text-sm text-gray-900">{event.time}</td>
-                      <td className="py-3 px-4 text-sm text-gray-700">{event.location}</td>
-                      <td className="py-3 px-4 text-sm">
-                        <span className="font-medium text-gray-900">{event.temperature}°C</span>
-                        <span className="text-gray-500 ml-2">/ 40°C</span>
+                  {thermalEvents.length === 0 ? (
+                    <tr>
+                      <td colSpan="7" className="py-8 px-4 text-center text-gray-500">
+                        <div className="flex flex-col items-center space-y-2">
+                          <Thermometer className="w-8 h-8 text-gray-300" />
+                          <p className="text-sm">Belum ada event thermal terdeteksi</p>
+                          <p className="text-xs text-gray-400">Event akan muncul otomatis ketika sistem mendeteksi WARNING atau DANGER</p>
+                        </div>
                       </td>
-                      <td className="py-3 px-4 text-sm">
-                        {event.status === 'warning' ? (
-                          <span className="flex items-center space-x-1">
-                            <AlertTriangle className="w-4 h-4 text-yellow-500" />
-                            <span className="text-yellow-600 font-medium">Warning</span>
-                          </span>
-                        ) : (
-                          <span className="flex items-center space-x-1">
-                            <CheckCircle className="w-4 h-4 text-green-500" />
-                            <span className="text-green-600 font-medium">Normal</span>
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-3 px-4 text-sm text-gray-700">{event.action}</td>
                     </tr>
-                  ))}
+                  ) : (
+                    thermalEvents.map((event) => (
+                      <tr key={event.id} className="border-b border-gray-100 hover:bg-gray-50">
+                        <td className="py-3 px-4 text-sm text-gray-900">{event.time}</td>
+                        <td className="py-3 px-4 text-sm text-gray-700">{event.location}</td>
+                        <td className="py-3 px-4 text-sm">
+                          <span className="font-medium text-gray-900">{event.temperature}°C</span>
+                          <span className="text-gray-500 ml-2">/ {event.brand === 'Gilbarco' ? '45°C' : '55°C'}</span>
+                        </td>
+                        <td className="py-3 px-4 text-sm">
+                          {event.status === 'danger' ? (
+                            <span className="flex items-center space-x-1">
+                              <AlertTriangle className="w-4 h-4 text-red-500" />
+                              <span className="text-red-600 font-medium">Danger</span>
+                            </span>
+                          ) : event.status === 'warning' ? (
+                            <span className="flex items-center space-x-1">
+                              <AlertTriangle className="w-4 h-4 text-yellow-500" />
+                              <span className="text-yellow-600 font-medium">Warning</span>
+                            </span>
+                          ) : (
+                            <span className="flex items-center space-x-1">
+                              <CheckCircle className="w-4 h-4 text-green-500" />
+                              <span className="text-green-600 font-medium">Normal</span>
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-3 px-4 text-sm text-gray-700">
+                          {event.reason ? (
+                            <span className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded">
+                              {event.reason}
+                            </span>
+                          ) : (
+                            <span className="text-gray-400">-</span>
+                          )}
+                        </td>
+                        <td className="py-3 px-4 text-sm text-gray-700">{event.action}</td>
+                        <td className="py-3 px-4 text-sm">
+                          <button
+                            onClick={() => deleteThermalEvent(event.id)}
+                            className="px-3 py-1.5 bg-red-500 text-white rounded-lg text-xs hover:bg-red-600 flex items-center space-x-1 transition-colors"
+                            title="Delete Event"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                            <span>Delete</span>
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>

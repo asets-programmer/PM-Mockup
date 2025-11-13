@@ -4,6 +4,8 @@ import Sidebar from '../../komponen/Sidebar';
 import Navbar from '../../komponen/Navbar';
 import { useAuth } from '../../auth/AuthContext';
 import CameraSection from './CameraSection';
+import JerigenDetection from './JerigenDetection';
+import PlatNomorDetection from './PlatNomorDetection';
 import PrivacySecurityPanel from './privacy/PrivacySecurityPanel';
 import { encrypt_data, anonymize_event } from './privacy/privacyUtils';
 import { securityLog } from './privacy/securityLog';
@@ -18,6 +20,10 @@ const Sentinel = () => {
   const audioRef = useRef(null);
   const synthRef = useRef(null);
   const mediaRecorderRef = useRef(null);
+  const playedAlertsRef = useRef(new Set());
+  const isInitialMountRef = useRef(true);
+  const userInteractedRef = useRef(false);
+  const lastJerigenAudioTimeRef = useRef(0); // Track kapan audio jerigen terakhir diputar
   
   // IP Webcam Configuration (HTTPS for two-way audio)
   const IP_WEBCAM_URL = 'https://192.168.1.38:8080';
@@ -29,19 +35,194 @@ const Sentinel = () => {
     { type: 'hazard', count: 25, trend: 'up', color: 'green' }
   ];
 
-  // Original alerts data
-  const originalAlerts = [
+  // State untuk alerts (dinamis)
+  const initialAlerts = [
     { id: 1, time: '14:32', type: 'Spill Detected', location: 'Pump 2', severity: 'critical', confidence: 92, status: 'Active', description: 'Bensin tumpah terdeteksi di Pump 2', timestamp: new Date().toISOString() },
     { id: 2, time: '14:28', type: 'Queue Alert', location: 'Dispenser 3', severity: 'warning', confidence: 85, status: 'Acknowledged', description: 'Antrian panjang terdeteksi di Dispenser 3', timestamp: new Date().toISOString() },
     { id: 3, time: '13:15', type: 'Hazard Detected', location: 'Pump 1', severity: 'warning', confidence: 78, status: 'Resolved', description: 'Aktivitas merokok terdeteksi di area SPBU', timestamp: new Date().toISOString() },
     { id: 4, time: '12:45', type: 'Spill Detected', location: 'Pump 3', severity: 'info', confidence: 65, status: 'Resolved', description: 'Bensin tumpah terdeteksi di Pump 3', timestamp: new Date().toISOString() },
     { id: 5, time: '11:20', type: 'Queue Alert', location: 'Dispenser 2', severity: 'info', confidence: 70, status: 'Resolved', description: 'Antrian panjang terdeteksi di Dispenser 2', timestamp: new Date().toISOString() },
+    { id: 6, time: '15:10', type: 'Jerigen Detected', location: 'Dispenser 1', severity: 'critical', confidence: 95, status: 'Active', description: 'Pengisian bensin menggunakan jerigen terdeteksi', plateNumber: null, timestamp: new Date().toISOString() },
+    { id: 7, time: '14:55', type: 'Wrong Dispenser', location: 'Dispenser Pertalite', severity: 'warning', confidence: 88, status: 'Active', description: 'Mobil dengan plat nomor B 3673 API berada di dispenser untuk pertalite', plateNumber: 'B 3673 API', correctDispenser: 'Dispenser Pertamax', timestamp: new Date().toISOString() },
   ];
+  
+  const [alerts, setAlerts] = useState(initialAlerts);
 
+  // Handler untuk ketika plat nomor terdeteksi
+  const handlePlatDetected = (detectionData) => {
+    console.log('🚗 [SENTINEL] ========== handlePlatDetected CALLED ==========');
+    console.log('🚗 [SENTINEL] Detection data received:', detectionData);
+    
+    const now = new Date();
+    const timeString = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+    
+    const newAlert = {
+      id: Date.now(),
+      time: timeString,
+      type: 'Plat Nomor Detected',
+      location: 'Camera Feed',
+      severity: detectionData.confidence > 0.8 ? 'info' : 'info',
+      confidence: Math.round(detectionData.confidence * 100),
+      status: 'Active',
+      description: `Plat nomor kendaraan terdeteksi (${detectionData.detections.length} deteksi)`,
+      plateNumber: null, // Bisa ditambahkan OCR untuk membaca nomor plat
+      timestamp: detectionData.timestamp
+    };
+    
+    console.log('🚗 [SENTINEL] New alert created:', newAlert);
+    
+    // Add to alerts
+    setAlerts(prevAlerts => {
+      console.log('🚗 [SENTINEL] Previous alerts count:', prevAlerts.length);
+      
+      // Check if similar alert already exists (within last 30 seconds)
+      const recentSimilarAlert = prevAlerts.find(alert => 
+        alert.type === 'Plat Nomor Detected' && 
+        alert.status === 'Active' &&
+        new Date(alert.timestamp) > new Date(Date.now() - 30000)
+      );
+      
+      console.log('🚗 [SENTINEL] Recent similar alert found:', recentSimilarAlert ? 'YES' : 'NO');
+      
+      let updatedAlerts;
+      if (recentSimilarAlert) {
+        // Update existing alert
+        console.log('🚗 [SENTINEL] Updating existing alert (ID:', recentSimilarAlert.id, ')');
+        updatedAlerts = prevAlerts.map(alert => 
+          alert.id === recentSimilarAlert.id 
+            ? { ...newAlert, id: alert.id }
+            : alert
+        );
+      } else {
+        // Add new alert
+        console.log('🚗 [SENTINEL] Adding NEW alert');
+        updatedAlerts = [newAlert, ...prevAlerts];
+      }
+      
+      return updatedAlerts;
+    });
+  };
+
+  // Handler untuk ketika jerigen terdeteksi
+  const handleJerigenDetected = (detectionData) => {
+    console.log('🎯 [SENTINEL] ========== handleJerigenDetected CALLED ==========');
+    console.log('🎯 [SENTINEL] Detection data received:', detectionData);
+    
+    const now = new Date();
+    const timeString = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+    
+    const newAlert = {
+      id: Date.now(),
+      time: timeString,
+      type: 'Jerigen Detected',
+      location: 'Camera Feed',
+      severity: detectionData.confidence > 0.8 ? 'critical' : 'warning',
+      confidence: Math.round(detectionData.confidence * 100),
+      status: 'Active',
+      description: `Pengisian bensin menggunakan jerigen terdeteksi (${detectionData.detections.length} jerigen)`,
+      plateNumber: null,
+      timestamp: detectionData.timestamp
+    };
+    
+    console.log('🎯 [SENTINEL] New alert created:', newAlert);
+    
+    // Add to alerts
+    setAlerts(prevAlerts => {
+      console.log('🎯 [SENTINEL] Previous alerts count:', prevAlerts.length);
+      
+      // Check if similar alert already exists (within last 30 seconds)
+      const recentSimilarAlert = prevAlerts.find(alert => 
+        alert.type === 'Jerigen Detected' && 
+        alert.status === 'Active' &&
+        new Date(alert.timestamp) > new Date(Date.now() - 30000)
+      );
+      
+      console.log('🎯 [SENTINEL] Recent similar alert found:', recentSimilarAlert ? 'YES' : 'NO');
+      if (recentSimilarAlert) {
+        console.log('🎯 [SENTINEL] Recent alert timestamp:', recentSimilarAlert.timestamp);
+        console.log('🎯 [SENTINEL] Current time:', new Date().toISOString());
+        console.log('🎯 [SENTINEL] Time difference (ms):', Date.now() - new Date(recentSimilarAlert.timestamp).getTime());
+      }
+      
+      let updatedAlerts;
+      if (recentSimilarAlert) {
+        // Update existing alert
+        console.log('🎯 [SENTINEL] Updating existing alert (ID:', recentSimilarAlert.id, ')');
+        updatedAlerts = prevAlerts.map(alert => 
+          alert.id === recentSimilarAlert.id 
+            ? { ...newAlert, id: alert.id }
+            : alert
+        );
+      } else {
+        // Add new alert
+        console.log('🎯 [SENTINEL] Adding NEW alert');
+        updatedAlerts = [newAlert, ...prevAlerts];
+      }
+      
+      // Auto-play audio setiap kali jerigen terdeteksi
+      // Debounce: hanya play audio jika lebih dari 18 detik sejak audio terakhir diputar
+      // Atau jika ini adalah alert baru (tidak ada recent similar alert)
+      // Ini mencegah spam audio tapi tetap memastikan audio diputar untuk deteksi baru
+      const timeSinceLastAudio = Date.now() - lastJerigenAudioTimeRef.current;
+      const AUDIO_DEBOUNCE_MS = 18000; // 18 detik debounce untuk audio (mencegah spam)
+      const isNewAlert = !recentSimilarAlert;
+      const shouldPlayAudio = isNewAlert || (timeSinceLastAudio > AUDIO_DEBOUNCE_MS);
+      
+      if (shouldPlayAudio) {
+        console.log('🔔 [SENTINEL] ========== TRIGGERING AUDIO PLAYBACK ==========');
+        console.log('🔔 [SENTINEL] Is new alert:', isNewAlert);
+        console.log('🔔 [SENTINEL] Time since last audio:', timeSinceLastAudio, 'ms (need >', AUDIO_DEBOUNCE_MS, 'ms)');
+        console.log('🔔 [SENTINEL] Condition met: Audio will play!');
+        
+        // Log privacy operations
+        securityLog.logAnonymization(newAlert.type, true);
+        securityLog.logEncryption('alert_data', true);
+        privacyAPI.incrementAnonymized();
+        privacyAPI.incrementEncrypted();
+        
+        // Play audio peringatan otomatis langsung
+        console.log('🔔 [SENTINEL] Jerigen detected! Attempting to play audio...');
+        console.log('🔔 [SENTINEL] User interacted:', userInteractedRef.current);
+        console.log('🔔 [SENTINEL] Document has focus:', document.hasFocus());
+        console.log('🔔 [SENTINEL] Alert to play:', newAlert);
+        
+        // Force user interaction flag jika belum set (untuk memastikan audio bisa play)
+        if (!userInteractedRef.current) {
+          console.log('⚠️ [SENTINEL] User interaction not detected, forcing...');
+          userInteractedRef.current = true;
+        }
+        
+        // Update waktu audio terakhir diputar
+        lastJerigenAudioTimeRef.current = Date.now();
+        
+        // Coba play audio langsung dengan beberapa cara
+        // Method 1: Langsung panggil
+        console.log('🔔 [SENTINEL] Calling playAudioDirectly (method 1)...');
+        playAudioDirectly(newAlert);
+        
+        // Method 2: Fallback dengan delay kecil (untuk memastikan)
+        setTimeout(() => {
+          if (window.speechSynthesis && !window.speechSynthesis.speaking) {
+            console.log('🔄 [SENTINEL] Retrying audio playback (fallback method 2)...');
+            playAudioDirectly(newAlert);
+          } else {
+            console.log('🔄 [SENTINEL] Audio already playing, skipping fallback');
+          }
+        }, 500);
+      } else {
+        console.log(`⏭️ [SENTINEL] Skipping audio to prevent spam`);
+        console.log(`⏭️ [SENTINEL] - Only ${Math.round(timeSinceLastAudio / 1000)}s since last audio (need > ${AUDIO_DEBOUNCE_MS / 1000}s)`);
+        console.log(`⏭️ [SENTINEL] - Is new alert: ${isNewAlert}`);
+      }
+      
+      return updatedAlerts;
+    });
+  };
+  
   // Process alerts through privacy layer (encrypt and anonymize for storage/logging)
-  const [recentAlerts] = useState(() => {
+  const [recentAlerts, setRecentAlerts] = useState(() => {
     // Process each alert through privacy-preserving layer
-    return originalAlerts.map(alert => {
+    return alerts.map(alert => {
       // Anonymize event for privacy-compliant logging
       const anonymized = anonymize_event(alert);
       
@@ -70,6 +251,33 @@ const Sentinel = () => {
       };
     });
   });
+  
+  // Update recentAlerts when alerts change
+  useEffect(() => {
+    const processedAlerts = alerts.map(alert => {
+      // Anonymize event for privacy-compliant logging
+      const anonymized = anonymize_event(alert);
+      
+      // Encrypt sensitive data for secure storage
+      const encrypted = encrypt_data({
+        originalLocation: alert.location,
+        originalDescription: alert.description,
+        timestamp: alert.timestamp
+      });
+      
+      // Return original alert for display (privacy layer works in background)
+      return {
+        ...alert,
+        _privacy: {
+          anonymized: anonymized,
+          encrypted: encrypted,
+          privacyCompliant: true
+        }
+      };
+    });
+    
+    setRecentAlerts(processedAlerts);
+  }, [alerts]);
 
   // Initialize privacy/security logging on mount
   useEffect(() => {
@@ -82,6 +290,30 @@ const Sentinel = () => {
       message: 'Sentinel dashboard initialized with privacy-preserving AI layer',
       details: { feature: 'privacy_security_layer' }
     });
+
+    // Mark user interaction when they click anywhere on the page
+    const handleUserInteraction = () => {
+      userInteractedRef.current = true;
+      console.log('✅ User interaction detected - audio auto-play enabled');
+    };
+    
+    // Expose function untuk komponen lain (seperti JerigenDetection)
+    window.userInteractedForAudio = handleUserInteraction;
+
+    // Listen for user interactions (click, keypress, touch)
+    window.addEventListener('click', handleUserInteraction, { once: true });
+    window.addEventListener('keydown', handleUserInteraction, { once: true });
+    window.addEventListener('touchstart', handleUserInteraction, { once: true });
+
+    return () => {
+      window.removeEventListener('click', handleUserInteraction);
+      window.removeEventListener('keydown', handleUserInteraction);
+      window.removeEventListener('touchstart', handleUserInteraction);
+      // Cleanup exposed function
+      if (window.userInteractedForAudio) {
+        delete window.userInteractedForAudio;
+      }
+    };
   }, [user]);
 
   // Generate audio message based on alert type and severity
@@ -102,6 +334,21 @@ const Sentinel = () => {
         critical: `Peringatan darurat! Aktivitas berbahaya terdeteksi di ${alert.location}. Dilarang keras merokok di area SPBU. Segera hentikan aktivitas berbahaya.`,
         warning: `Peringatan! Aktivitas berbahaya terdeteksi di ${alert.location}. Dilarang merokok di area SPBU.`,
         info: `Informasi: Aktivitas berbahaya terdeteksi di ${alert.location}. Harap perhatikan.`
+      },
+      'Jerigen Detected': {
+        critical: `Peringatan darurat! Pengisian bensin menggunakan jerigen terdeteksi di ${alert.location}. Dilarang keras mengisi bensin menggunakan jerigen karena sangat berbahaya. Segera hentikan aktivitas tersebut.`,
+        warning: `Peringatan! Pengisian bensin menggunakan jerigen terdeteksi di ${alert.location}. Dilarang mengisi bensin menggunakan jerigen.`,
+        info: `Informasi: Pengisian bensin menggunakan jerigen terdeteksi di ${alert.location}. Harap perhatikan.`
+      },
+      'Wrong Dispenser': {
+        critical: `Peringatan! Mobil dengan plat nomor ${alert.plateNumber || 'tidak diketahui'} berada di ${alert.location}. Harap pindah ke ${alert.correctDispenser || 'dispenser yang sesuai'}.`,
+        warning: `Peringatan! Mobil dengan plat nomor ${alert.plateNumber || 'tidak diketahui'} berada di ${alert.location}. Harap pindah ke ${alert.correctDispenser || 'dispenser yang sesuai'}.`,
+        info: `Informasi: Mobil dengan plat nomor ${alert.plateNumber || 'tidak diketahui'} berada di ${alert.location}. Harap pindah ke ${alert.correctDispenser || 'dispenser yang sesuai'}.`
+      },
+      'Plat Nomor Detected': {
+        critical: `Plat nomor kendaraan terdeteksi di ${alert.location}. Confidence: ${alert.confidence}%.`,
+        warning: `Plat nomor kendaraan terdeteksi di ${alert.location}. Confidence: ${alert.confidence}%.`,
+        info: `Informasi: Plat nomor kendaraan terdeteksi di ${alert.location}. Confidence: ${alert.confidence}%.`
       }
     };
 
@@ -271,9 +518,153 @@ const Sentinel = () => {
     }
   };
 
+  // Play audio langsung tanpa async (untuk auto-play)
+  const playAudioDirectly = (alert) => {
+    try {
+      console.log('🔊 [AUDIO] ========== STARTING AUDIO PLAYBACK ==========');
+      console.log('🔊 [AUDIO] Playing audio for alert:', alert.type);
+      console.log('🔊 [AUDIO] Alert details:', alert);
+      console.log('🔊 [AUDIO] User interacted:', userInteractedRef.current);
+      console.log('🔊 [AUDIO] Document has focus:', document.hasFocus());
+      
+      // Generate audio message
+      const message = getAudioMessage(alert);
+      console.log('📢 [AUDIO] Audio message:', message);
+      console.log('📢 [AUDIO] Message length:', message.length);
+      
+      // Use Web Speech API for text-to-speech (local playback)
+      if ('speechSynthesis' in window) {
+        console.log('✅ [AUDIO] speechSynthesis available');
+        console.log('✅ [AUDIO] Current speaking status:', window.speechSynthesis.speaking);
+        console.log('✅ [AUDIO] Current pending status:', window.speechSynthesis.pending);
+        
+        // Stop any ongoing speech
+        window.speechSynthesis.cancel();
+        console.log('🛑 [AUDIO] Cancelled any ongoing speech');
+        
+        // Wait a bit untuk memastikan cancel selesai
+        setTimeout(() => {
+          try {
+            console.log('🎤 [AUDIO] Creating utterance...');
+            const utterance = new SpeechSynthesisUtterance(message);
+            utterance.lang = 'id-ID'; // Indonesian
+            utterance.rate = 0.9;
+            utterance.pitch = 1;
+            utterance.volume = 1;
+            console.log('✅ [AUDIO] Utterance created with properties:', {
+              lang: utterance.lang,
+              rate: utterance.rate,
+              pitch: utterance.pitch,
+              volume: utterance.volume
+            });
+            
+            // Multiple fallback attempts
+            let attemptCount = 0;
+            const maxAttempts = 3;
+            
+            const tryPlay = () => {
+              attemptCount++;
+              console.log(`🔄 [AUDIO] Attempt ${attemptCount}/${maxAttempts} to play audio...`);
+              
+              const isSpeaking = window.speechSynthesis.speaking;
+              const isPending = window.speechSynthesis.pending;
+              console.log('🔍 [AUDIO] Status before speak - speaking:', isSpeaking, 'pending:', isPending);
+              
+              if (!isSpeaking && !isPending) {
+                try {
+                  window.speechSynthesis.speak(utterance);
+                  console.log('✅ [AUDIO] speechSynthesis.speak() called');
+                  
+                  // Check status setelah 200ms
+                  setTimeout(() => {
+                    const stillSpeaking = window.speechSynthesis.speaking;
+                    const stillPending = window.speechSynthesis.pending;
+                    console.log('🔍 [AUDIO] Status after 200ms - speaking:', stillSpeaking, 'pending:', stillPending);
+                    
+                    if (!stillSpeaking && !stillPending && attemptCount < maxAttempts) {
+                      console.log(`⚠️ [AUDIO] Audio tidak mulai setelah 200ms, mencoba lagi (attempt ${attemptCount + 1})...`);
+                      setTimeout(tryPlay, 300);
+                    }
+                  }, 200);
+                } catch (speakErr) {
+                  console.error('❌ [AUDIO] Error calling speak:', speakErr);
+                  if (attemptCount < maxAttempts) {
+                    setTimeout(tryPlay, 300);
+                  }
+                }
+              } else {
+                console.log('⚠️ [AUDIO] Speech synthesis is busy, waiting...');
+                if (attemptCount < maxAttempts) {
+                  setTimeout(tryPlay, 500);
+                }
+              }
+            };
+            
+            utterance.onstart = () => {
+              console.log('✅ [AUDIO] ========== AUDIO STARTED PLAYING! ==========');
+              setPlayingAudioId(alert.id);
+            };
+            
+            utterance.onend = () => {
+              console.log('✅ [AUDIO] ========== AUDIO FINISHED PLAYING ==========');
+              setPlayingAudioId(null);
+              securityLog.log({
+                type: 'audio',
+                category: 'playback',
+                severity: 'low',
+                message: `Audio playback completed: ${alert.type}`,
+                details: { alertId: alert.id },
+                status: 'success'
+              });
+            };
+            
+            utterance.onerror = (error) => {
+              console.error('❌ [AUDIO] ========== AUDIO PLAYBACK ERROR ==========');
+              console.error('❌ [AUDIO] Error details:', {
+                error: error.error,
+                type: error.type,
+                charIndex: error.charIndex
+              });
+              setPlayingAudioId(null);
+              securityLog.log({
+                type: 'audio',
+                category: 'playback',
+                severity: 'medium',
+                message: `Audio playback failed: ${alert.type}`,
+                details: { alertId: alert.id, error: error?.error || 'Unknown error' },
+                status: 'error'
+              });
+              
+              // Retry on error if attempts remaining
+              if (attemptCount < maxAttempts) {
+                console.log(`🔄 [AUDIO] Retrying after error (attempt ${attemptCount + 1})...`);
+                setTimeout(tryPlay, 500);
+              }
+            };
+            
+            // Start first attempt
+            tryPlay();
+          } catch (speakError) {
+            console.error('❌ [AUDIO] Error creating utterance:', speakError);
+            console.error('❌ [AUDIO] Error stack:', speakError.stack);
+          }
+        }, 100);
+      } else {
+        console.warn('⚠️ [AUDIO] Speech synthesis tidak tersedia di browser ini');
+        alert('Browser tidak mendukung text-to-speech. Silakan gunakan browser yang lebih baru.');
+      }
+    } catch (error) {
+      console.error('❌ [AUDIO] Error in playAudioDirectly:', error);
+      console.error('❌ [AUDIO] Error stack:', error.stack);
+    }
+  };
+  
   // Play audio and send to IP Webcam
   const playAudio = async (alert) => {
     try {
+      // Mark that user has interacted
+      userInteractedRef.current = true;
+      
       setPlayingAudioId(alert.id);
       
       // Log audio playback access (privacy-aware)
@@ -315,27 +706,31 @@ const Sentinel = () => {
           });
         };
         
-        utterance.onerror = () => {
+        utterance.onerror = (error) => {
           setPlayingAudioId(null);
           securityLog.log({
             type: 'audio',
             category: 'playback',
             severity: 'medium',
             message: `Audio playback failed: ${alert.type}`,
-            details: { alertId: alert.id },
+            details: { alertId: alert.id, error: error?.error || 'Unknown error' },
             status: 'error'
           });
         };
+      } else {
+        // Fallback jika speechSynthesis tidak tersedia
+        setPlayingAudioId(null);
+        console.warn('Speech synthesis tidak tersedia di browser ini');
       }
       
-      // Try to send audio to IP Webcam via two-way audio
-      // This will capture microphone audio and send to IP Webcam
-      try {
-        await captureAndSendAudio(message);
-      } catch (webcamError) {
-        console.warn('Could not send audio to IP Webcam:', webcamError);
-        // Audio will still play locally via text-to-speech
-      }
+      // Note: captureAndSendAudio untuk IP Webcam di-disable untuk menghindari permission error
+      // Jika diperlukan, bisa diaktifkan dengan permission handling yang lebih baik
+      // try {
+      //   await captureAndSendAudio(message);
+      // } catch (webcamError) {
+      //   console.warn('Could not send audio to IP Webcam:', webcamError);
+      //   // Audio will still play locally via text-to-speech
+      // }
       
     } catch (error) {
       console.error('Error playing audio:', error);
@@ -348,7 +743,8 @@ const Sentinel = () => {
         details: { error: error.message },
         status: 'error'
       });
-      alert('Gagal memutar audio. Pastikan browser mendukung text-to-speech dan izin microphone sudah diberikan.');
+      // Jangan tampilkan alert error, cukup log saja
+      console.warn('Gagal memutar audio. Pastikan browser mendukung text-to-speech.');
     }
   };
 
@@ -378,6 +774,78 @@ const Sentinel = () => {
       stopAudio();
     };
   }, []);
+
+  // Auto-play audio for active alerts (Jerigen Detected and Wrong Dispenser)
+  // DISABLED: Auto-play is disabled to prevent audio from playing when clicking Sentinel feature
+  // Audio will only play when user explicitly clicks the "Play Audio" button
+  // Uncomment and modify this useEffect if you want to re-enable auto-play for new alerts only
+  /*
+  useEffect(() => {
+    // Skip auto-play on initial mount or if user hasn't interacted yet
+    if (isInitialMountRef.current) {
+      isInitialMountRef.current = false;
+      return;
+    }
+
+    // Only auto-play if user has interacted with the page
+    if (!userInteractedRef.current) {
+      return;
+    }
+
+    const activeAlerts = recentAlerts.filter(alert => 
+      alert.status === 'Active' && 
+      (alert.type === 'Jerigen Detected' || alert.type === 'Wrong Dispenser') &&
+      !playedAlertsRef.current.has(alert.id)
+    );
+
+    if (activeAlerts.length > 0 && !playingAudioId) {
+      // Play audio for the first active alert that hasn't been played yet
+      const alertToPlay = activeAlerts[0];
+      const message = getAudioMessage(alertToPlay);
+      
+      // Mark this alert as played
+      playedAlertsRef.current.add(alertToPlay.id);
+      
+      if ('speechSynthesis' in window) {
+        // Stop any ongoing speech
+        window.speechSynthesis.cancel();
+        
+        // Small delay to ensure previous audio is stopped
+        setTimeout(() => {
+          const utterance = new SpeechSynthesisUtterance(message);
+          utterance.lang = 'id-ID';
+          utterance.rate = 0.9;
+          utterance.pitch = 1;
+          utterance.volume = 1;
+          
+          utterance.onend = () => {
+            setPlayingAudioId(null);
+          };
+          
+          utterance.onerror = () => {
+            setPlayingAudioId(null);
+          };
+          
+          setPlayingAudioId(alertToPlay.id);
+          window.speechSynthesis.speak(utterance);
+          
+          // Try to send audio to IP Webcam
+          captureAndSendAudio(message).catch(err => {
+            console.warn('Could not send audio to IP Webcam:', err);
+          });
+        }, 500);
+      }
+    }
+    
+    // Reset played alerts when status changes from Active to something else
+    recentAlerts.forEach(alert => {
+      if (alert.status !== 'Active' && playedAlertsRef.current.has(alert.id)) {
+        playedAlertsRef.current.delete(alert.id);
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recentAlerts, playingAudioId]);
+  */
 
   const systemMetrics = {
     totalEvents: 100,
@@ -475,6 +943,12 @@ const Sentinel = () => {
 
           {/* Camera Section */}
           <CameraSection />
+          
+          {/* Jerigen Detection Section */}
+          <JerigenDetection onJerigenDetected={handleJerigenDetected} />
+          
+          {/* Plat Nomor Detection Section */}
+          <PlatNomorDetection onPlatDetected={handlePlatDetected} />
 
           {/* Main Content Grid */}
           <div className="grid grid-cols-3 gap-6">

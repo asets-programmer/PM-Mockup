@@ -4,11 +4,36 @@ import path from 'path'
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    // Plugin untuk menangani WASM files dengan MIME type yang benar
+    {
+      name: 'configure-response-headers',
+      configureServer(server) {
+        server.middlewares.use((req, res, next) => {
+          if (req.url.endsWith('.wasm')) {
+            res.setHeader('Content-Type', 'application/wasm');
+          }
+          next();
+        });
+      },
+    },
+  ],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
+  },
+  optimizeDeps: {
+    include: ['react-is'],
+    esbuildOptions: {
+      define: {
+        global: 'globalThis',
+      },
+    },
+  },
+  commonjsOptions: {
+    transformMixedEsModules: true,
   },
   define: {
     __APP_NAME__: JSON.stringify('STORI - System Monitoring'),
@@ -43,4 +68,14 @@ export default defineConfig({
   },
   // Enable source maps for better debugging in production
   sourcemap: false,
+  server: {
+    fs: {
+      // Allow serving files from public directory
+      allow: ['..'],
+    },
+  },
+  // Configure MIME types for static assets
+  assetsInclude: ['**/*.wasm', '**/*.onnx'],
+  // Configure static asset handling
+  publicDir: 'public',
 })

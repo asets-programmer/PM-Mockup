@@ -66,18 +66,15 @@ const CommandCenterDashboard = () => {
   const detectionIntervalRef = useRef(null);
   const snapshotIntervalRef = useRef(null);
   
-  // API Configuration - Brand Detection from engine-insight-quick
-  // Try multiple ports in case server is running on different port
-  const BRAND_DETECTION_API_PORTS = [3000, 8080];
-  const getBrandDetectionAPI = () => {
-    // Try to find which port is available (you can customize this)
-    const port = BRAND_DETECTION_API_PORTS[0]; // Default to 3000 (from package.json)
-    return `http://localhost:${port}/detect-brand-realtime`;
-  };
-  const BRAND_DETECTION_API = getBrandDetectionAPI();
+  // Teachable Machine Model Configuration
+  const MODEL_URL = '/my_model/';
+  const modelRef = useRef(null);
+  const webcamRef = useRef(null);
+  const maxPredictionsRef = useRef(0);
+  const isLoopingRef = useRef(false);
   
   // IP Webcam Configuration
-  const IP_WEBCAM_URL = 'http://192.168.1.38:8080';
+  const IP_WEBCAM_URL = 'http://192.168.51.34:8080';
   const IP_WEBCAM_STREAM = `${IP_WEBCAM_URL}/video`; // MJPEG stream endpoint
   const IP_WEBCAM_SNAPSHOT = `${IP_WEBCAM_URL}/shot.jpg`; // JPEG snapshot endpoint
 
@@ -225,29 +222,6 @@ const CommandCenterDashboard = () => {
     hazards: 25
   };
 
-  // Track previous brand detection to avoid duplicate notifications
-  const prevBrandRef = useRef(null);
-  
-  // Notifikasi ketika brand terdeteksi dari kamera
-  useEffect(() => {
-    if (detectedBrand && detectionConfidence > 0) {
-      // Cek apakah ini deteksi baru (bukan duplikat)
-      const currentBrandKey = `${detectedBrand}-${detectionConfidence}`;
-      if (prevBrandRef.current !== currentBrandKey) {
-        const newNotification = {
-          id: Date.now(),
-          type: 'info',
-          message: `Brand terdeteksi: ${detectedBrand} (Confidence: ${detectionConfidence}%)`,
-          time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
-        };
-        setNotifications(prev => [newNotification, ...prev].slice(0, 5));
-        prevBrandRef.current = currentBrandKey;
-      }
-    } else if (!detectedBrand && detectionConfidence === 0) {
-      // Reset previous brand ketika tidak ada deteksi
-      prevBrandRef.current = null;
-    }
-  }, [detectedBrand, detectionConfidence]);
 
   // Update date and time
   useEffect(() => {
@@ -284,6 +258,186 @@ const CommandCenterDashboard = () => {
     setIsDarkMode(!isDarkMode);
   };
 
+  // Wait for Teachable Machine CDN to load
+  const waitForTMImage = async (maxWait = 5000) => {
+    const startTime = Date.now();
+    while (!window.tmImage && (Date.now() - startTime) < maxWait) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    if (!window.tmImage) {
+      throw new Error('Teachable Machine library not loaded. Please check if CDN scripts are loaded.');
+    }
+    return window.tmImage;
+  };
+
+  // Load Teachable Machine model
+  const loadModel = async () => {
+    try {
+      // Wait for CDN to load
+      const tmImage = await waitForTMImage();
+      
+      const modelURL = MODEL_URL + "model.json";
+      const metadataURL = MODEL_URL + "metadata.json";
+      
+      console.log('Loading model from:', modelURL);
+      console.log('Loading metadata from:', metadataURL);
+      
+      // First, verify files are accessible
+      try {
+        const modelResponse = await fetch(modelURL);
+        if (!modelResponse.ok) {
+          throw new Error(`Failed to fetch model.json: ${modelResponse.status} ${modelResponse.statusText}`);
+        }
+        const modelText = await modelResponse.text();
+        console.log('Model JSON fetched, length:', modelText.length);
+        
+        const metadataResponse = await fetch(metadataURL);
+        if (!metadataResponse.ok) {
+          throw new Error(`Failed to fetch metadata.json: ${metadataResponse.status} ${metadataResponse.statusText}`);
+        }
+        const metadataText = await metadataResponse.text();
+        console.log('Metadata JSON fetched:', metadataText);
+      } catch (fetchError) {
+        console.error('Error fetching model files:', fetchError);
+        throw new Error(`Cannot access model files: ${fetchError.message}`);
+      }
+      
+      // Load the model and metadata
+      const model = await tmImage.load(modelURL, metadataURL);
+      modelRef.current = model;
+      maxPredictionsRef.current = model.getTotalClasses();
+      
+      console.log('Model loaded successfully, classes:', maxPredictionsRef.current);
+      
+      return { success: true, tmImage };
+    } catch (error) {
+      console.error('Error loading model:', error);
+      console.error('Error details:', {
+        message: error.message,
+        stack: error.stack,
+        modelURL: MODEL_URL + "model.json",
+        metadataURL: MODEL_URL + "metadata.json"
+      });
+      setApiConnectionError(true);
+      return { success: false, tmImage: null };
+    }
+  };
+
+  // Initialize Teachable Machine webcam
+  const initTeachableMachine = async () => {
+    try {
+      // Load model first (this will also import tmImage)
+      const result = await loadModel();
+      if (!result.success || !result.tmImage) {
+        throw new Error('Failed to load model');
+      }
+      
+      const tmImage = result.tmImage;
+
+      // Setup webcam - use larger size to match display
+      const flip = true; // whether to flip the webcam
+      const webcam = new tmImage.Webcam(640, 480, flip); // width, height, flip
+      await webcam.setup(); // request access to the webcam
+      await webcam.play();
+      
+      webcamRef.current = webcam;
+      
+      // Append canvas to video element container
+      if (videoRef.current && webcam.canvas) {
+        const container = videoRef.current.parentNode;
+        if (container) {
+          // Remove any existing Teachable Machine canvas
+          const existingCanvas = container.querySelector('canvas[data-teachable-machine]');
+          if (existingCanvas) {
+            container.removeChild(existingCanvas);
+          }
+          
+          // Mark canvas for identification
+          webcam.canvas.setAttribute('data-teachable-machine', 'true');
+          
+          // Append canvas to container
+          container.appendChild(webcam.canvas);
+          
+          // Style the canvas to match video display
+          webcam.canvas.style.cssText = `
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: 1;
+          `;
+          
+          // Hide the video element since we're using the canvas
+            if (videoRef.current) {
+            videoRef.current.style.display = 'none';
+          }
+        }
+      }
+      
+      // Start prediction loop
+      isLoopingRef.current = true;
+      loop();
+      
+      return true;
+    } catch (error) {
+      console.error('Error initializing Teachable Machine:', error);
+      setApiConnectionError(true);
+      return false;
+            }
+          };
+          
+  // Prediction loop
+  const loop = async () => {
+    if (webcamRef.current && modelRef.current && isLoopingRef.current) {
+      webcamRef.current.update(); // update the webcam frame
+      await predict();
+      // Continue loop if camera is still active
+      if (webcamRef.current && modelRef.current && isLoopingRef.current) {
+        window.requestAnimationFrame(loop);
+      }
+    }
+  };
+
+  // Run prediction
+  const predict = async () => {
+    if (!modelRef.current || !webcamRef.current) return;
+    
+    try {
+      setIsDetecting(true);
+      // predict can take in an image, video or canvas html element
+      const prediction = await modelRef.current.predict(webcamRef.current.canvas);
+      
+      // Find the highest confidence prediction
+      let highestConfidence = 0;
+      let bestPrediction = null;
+      
+      for (let i = 0; i < maxPredictionsRef.current; i++) {
+        if (prediction[i].probability > highestConfidence) {
+          highestConfidence = prediction[i].probability;
+          bestPrediction = prediction[i];
+        }
+      }
+      
+      // Update detected brand and confidence
+      if (bestPrediction && highestConfidence > 0.1) { // Only show if confidence > 10%
+        setDetectedBrand(bestPrediction.className);
+        setDetectionConfidence(Math.round(highestConfidence * 100));
+        setApiConnectionError(false);
+      } else {
+        setDetectedBrand(null);
+        setDetectionConfidence(0);
+      }
+    } catch (error) {
+      console.error('Prediction error:', error);
+      setDetectedBrand(null);
+      setDetectionConfidence(0);
+    } finally {
+      setIsDetecting(false);
+    }
+  };
+
   // Start camera stream - Phone camera or IP Webcam
   const startCamera = async (mode = 'phone') => {
     try {
@@ -291,47 +445,14 @@ const CommandCenterDashboard = () => {
       setIsCameraActive(true);
       
       if (mode === 'phone') {
-        // Use phone camera (getUserMedia)
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { 
-            facingMode: 'environment', // Use back camera if available
-            width: { ideal: 1280 },
-            height: { ideal: 720 }
-          }
-        });
-        
-        setCameraStream(stream);
-        
-        // Attach stream to video element
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          
-          // Wait for video to be ready
-          videoRef.current.onloadedmetadata = () => {
-            console.log('Phone camera video metadata loaded');
-            if (videoRef.current) {
-              videoRef.current.play().then(() => {
-                console.log('Phone camera video playing');
-              }).catch(err => {
-                console.error('Error playing phone camera video:', err);
-              });
-            }
-          };
-          
-          // Ensure video plays immediately
-          videoRef.current.play().then(() => {
-            console.log('Phone camera video started playing');
-          }).catch(err => {
-            console.error('Error playing phone camera video:', err);
-          });
+        // Use Teachable Machine for phone camera
+        const success = await initTeachableMachine();
+        if (!success) {
+          setIsCameraActive(false);
+          alert('Tidak dapat mengakses kamera HP. Pastikan izin kamera sudah diberikan dan model Teachable Machine tersedia.');
         }
-        
-        // Start detection interval after a short delay
-        setTimeout(() => {
-          startBrandDetection();
-        }, 1000);
       } else {
-        // Use IP Webcam - Try MJPEG stream first, fallback to snapshot refresh
+        // IP Webcam mode - keep existing logic but use Teachable Machine for detection
         if (imgRef.current) {
           // Try MJPEG stream first
           imgRef.current.src = IP_WEBCAM_STREAM;
@@ -353,10 +474,16 @@ const CommandCenterDashboard = () => {
           };
         }
         
-        // Start detection interval after a short delay
+        // Load model for IP Webcam detection
+        const result = await loadModel();
+        if (result.success) {
         setTimeout(() => {
           startBrandDetection();
-        }, 2000); // Give more time for IP webcam to load
+          }, 2000);
+        } else {
+          setIsCameraActive(false);
+          alert('Tidak dapat memuat model Teachable Machine.');
+        }
       }
     } catch (error) {
       console.error('Error accessing camera:', error);
@@ -368,18 +495,6 @@ const CommandCenterDashboard = () => {
       setIsCameraActive(false);
     }
   };
-
-  // Effect to ensure video stream is attached when camera becomes active (phone mode)
-  useEffect(() => {
-    if (isCameraActive && cameraMode === 'phone' && cameraStream && videoRef.current) {
-      if (videoRef.current.srcObject !== cameraStream) {
-        videoRef.current.srcObject = cameraStream;
-        videoRef.current.play().catch(err => {
-          console.error('Error playing video in useEffect:', err);
-        });
-      }
-    }
-  }, [isCameraActive, cameraMode, cameraStream]);
   
   // Effect to ensure image stream is attached when camera becomes active (IP webcam mode)
   useEffect(() => {
@@ -392,6 +507,27 @@ const CommandCenterDashboard = () => {
   const stopCamera = () => {
     setIsCameraActive(false);
     
+    // Stop prediction loop
+    isLoopingRef.current = false;
+    
+    // Stop Teachable Machine webcam
+    if (webcamRef.current) {
+      webcamRef.current.stop();
+      
+      // Remove canvas from DOM
+      if (webcamRef.current.canvas && webcamRef.current.canvas.parentNode) {
+        webcamRef.current.canvas.parentNode.removeChild(webcamRef.current.canvas);
+      }
+      
+      webcamRef.current = null;
+    }
+    
+    // Show video element again if it was hidden
+    if (videoRef.current) {
+      videoRef.current.style.display = '';
+      videoRef.current.srcObject = null;
+    }
+    
     // Stop phone camera stream
     if (cameraStream) {
       cameraStream.getTracks().forEach(track => track.stop());
@@ -401,10 +537,6 @@ const CommandCenterDashboard = () => {
     // Stop IP webcam stream
     if (imgRef.current) {
       imgRef.current.src = '';
-    }
-    
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
     }
     
     // Stop snapshot refresh interval
@@ -423,170 +555,94 @@ const CommandCenterDashboard = () => {
     setDetectionConfidence(0);
   };
 
-  // Capture frame from image/video and send to API
+  // Capture frame and detect using Teachable Machine (for IP Webcam mode)
   const captureAndDetect = async () => {
-    if ((!imgRef.current && !videoRef.current) || !canvasRef.current || isDetecting) return;
+    if (!imgRef.current || !canvasRef.current || !modelRef.current || isDetecting) return;
     
     try {
       setIsDetecting(true);
       const canvas = canvasRef.current;
       const ctx = canvas.getContext('2d');
       
-      // Use img element if available (IP webcam), otherwise use video
-      const sourceElement = imgRef.current || videoRef.current;
+      if (!imgRef.current) return;
       
-      if (!sourceElement) return;
+      const width = imgRef.current.naturalWidth || 640;
+      const height = imgRef.current.naturalHeight || 480;
       
-      // Get dimensions
-      const width = sourceElement.naturalWidth || sourceElement.videoWidth || 640;
-      const height = sourceElement.naturalHeight || sourceElement.videoHeight || 480;
-      
-      // Set canvas size
       canvas.width = width;
       canvas.height = height;
-      
-      // Clear canvas first
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       
-      let imageBase64;
-      
-      // For video from getUserMedia (phone camera), direct draw works fine
-      if (sourceElement === videoRef.current && videoRef.current) {
-        // Video from getUserMedia doesn't have CORS issues - draw directly
-        ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-        
-        // Export canvas - this should work for getUserMedia video
-        try {
-          imageBase64 = canvas.toDataURL('image/jpeg', 0.8);
-        } catch (error) {
-          console.error('Failed to export video canvas:', error);
-          throw error;
-        }
-      } 
-      // For image from IP webcam, fetch snapshot directly to avoid CORS
-      else if (sourceElement === imgRef.current && imgRef.current) {
-        try {
-          // For IP webcam, fetch snapshot directly as blob
-          // Use snapshot endpoint with timestamp to get fresh image
+      try {
+        // Try to fetch fresh snapshot
           const snapshotUrl = IP_WEBCAM_SNAPSHOT + '?t=' + Date.now();
-          
-          // Try to fetch snapshot (may fail due to CORS, but worth trying)
-          const response = await fetch(snapshotUrl, {
-            cache: 'no-cache',
-            // Don't use mode: 'no-cors' as we need to read the response
-          });
+        const response = await fetch(snapshotUrl, { cache: 'no-cache' });
           
           if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
           }
           
-          // Convert response to blob
           const blob = await response.blob();
-          
-          // Convert blob directly to base64 (skip canvas to avoid CORS)
-          const reader = new FileReader();
-          imageBase64 = await new Promise((resolve, reject) => {
-            reader.onload = () => {
-              // reader.result is already a data URL (base64)
-              resolve(reader.result);
+        const imageUrl = URL.createObjectURL(blob);
+        const img = new Image();
+        
+        await new Promise((resolve, reject) => {
+          img.onload = () => {
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            URL.revokeObjectURL(imageUrl);
+            resolve();
             };
-            reader.onerror = () => {
-              reject(new Error('Failed to read IP webcam image'));
-            };
-            reader.readAsDataURL(blob);
-          });
-          
-          // Note: We bypass canvas for IP webcam to completely avoid CORS issues
-          // The base64 data URL is ready to send to API
+          img.onerror = () => {
+            URL.revokeObjectURL(imageUrl);
+            // Fallback to drawing from imgRef
+            try {
+              ctx.drawImage(imgRef.current, 0, 0, canvas.width, canvas.height);
+              resolve();
+            } catch (canvasError) {
+              reject(new Error('Failed to draw image'));
+            }
+          };
+          img.src = imageUrl;
+        });
         } catch (fetchError) {
-          console.warn('Failed to fetch IP webcam snapshot directly:', fetchError);
-          console.warn('IP webcam may not allow CORS. Trying canvas method...');
-          
-          // Fallback: try direct canvas draw (may fail due to CORS)
+        console.warn('Failed to fetch IP webcam snapshot:', fetchError);
           try {
             ctx.drawImage(imgRef.current, 0, 0, canvas.width, canvas.height);
-            imageBase64 = canvas.toDataURL('image/jpeg', 0.8);
           } catch (canvasError) {
-            console.error('Canvas draw also failed due to CORS:', canvasError);
-            // If both methods fail, suggest using phone camera
-            console.warn('⚠️ IP webcam has CORS restrictions. Please use phone camera for brand detection.');
-            throw new Error('IP webcam CORS restriction: Use phone camera instead for brand detection');
-          }
+          console.error('Canvas draw failed:', canvasError);
+          throw new Error('IP webcam CORS restriction');
         }
       }
       
-      // Try multiple ports if first one fails
-      let lastError = null;
-      for (const port of BRAND_DETECTION_API_PORTS) {
-        let timeoutId = null;
-        try {
-          const apiUrl = `http://localhost:${port}/detect-brand-realtime`;
-          
-          // Create abort controller for timeout
-          const controller = new AbortController();
-          timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
-          
-          const response = await fetch(apiUrl, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              image_base64: imageBase64
-            }),
-            signal: controller.signal
-          });
-          
-          clearTimeout(timeoutId);
-          timeoutId = null;
-          
-          if (!response.ok) {
-            throw new Error(`API request failed with status ${response.status}`);
-          }
-          
-          const result = await response.json();
-          
-          if (result.detected && result.brand) {
-            setDetectedBrand(result.brand);
-            setDetectionConfidence(Math.round(result.confidence * 100));
-            setApiConnectionError(false); // API is working
-            return; // Success, exit function
+      // Use Teachable Machine to predict
+      const prediction = await modelRef.current.predict(canvas);
+      
+      // Find the highest confidence prediction
+      let highestConfidence = 0;
+      let bestPrediction = null;
+      
+      for (let i = 0; i < maxPredictionsRef.current; i++) {
+        if (prediction[i].probability > highestConfidence) {
+          highestConfidence = prediction[i].probability;
+          bestPrediction = prediction[i];
+        }
+      }
+      
+      // Update detected brand and confidence
+      if (bestPrediction && highestConfidence > 0.1) { // Only show if confidence > 10%
+        setDetectedBrand(bestPrediction.className);
+        setDetectionConfidence(Math.round(highestConfidence * 100));
+        setApiConnectionError(false);
           } else {
             setDetectedBrand(null);
             setDetectionConfidence(0);
-            setApiConnectionError(false); // API is working, just no brand detected
-            return; // No brand detected, but API responded
-          }
-        } catch (error) {
-          // Clear timeout if still active
-          if (timeoutId) {
-            clearTimeout(timeoutId);
-          }
-          lastError = error;
-          console.log(`API port ${port} failed, trying next...`);
-          // Continue to next port
-        }
-      }
-      
-      // If all ports failed, show error
-      if (lastError) {
-        console.error('All API ports failed:', lastError);
-        setApiConnectionError(true);
-        // Only show error once to avoid spam
-        if (!lastError.message.includes('API server')) {
-          console.warn('⚠️ API server tidak berjalan. Pastikan engine-insight-quick API server sudah dijalankan:');
-          console.warn('   cd engine-insight-quick');
-          console.warn('   npm run api:server');
-          console.warn('   atau');
-          console.warn('   deno run --allow-net --allow-env --allow-run --allow-read --allow-write api-server.ts --port 3000');
-        }
-        setDetectedBrand(null);
-        setDetectionConfidence(0);
+        setApiConnectionError(false);
       }
     } catch (error) {
       console.error('Error detecting brand:', error);
       setDetectedBrand(null);
       setDetectionConfidence(0);
+      setApiConnectionError(true);
     } finally {
       setIsDetecting(false);
     }
@@ -608,6 +664,21 @@ const CommandCenterDashboard = () => {
   // Cleanup on unmount
   useEffect(() => {
     return () => {
+      // Stop prediction loop
+      isLoopingRef.current = false;
+      
+      // Stop Teachable Machine webcam
+      if (webcamRef.current) {
+        webcamRef.current.stop();
+        
+        // Remove canvas from DOM
+        if (webcamRef.current.canvas && webcamRef.current.canvas.parentNode) {
+          webcamRef.current.canvas.parentNode.removeChild(webcamRef.current.canvas);
+        }
+        
+        webcamRef.current = null;
+      }
+      
       if (cameraStream) {
         cameraStream.getTracks().forEach(track => track.stop());
       }
@@ -623,6 +694,7 @@ const CommandCenterDashboard = () => {
       if (videoRef.current) {
         videoRef.current.src = '';
         videoRef.current.srcObject = null;
+        videoRef.current.style.display = '';
       }
     };
   }, [cameraStream]);
@@ -1320,16 +1392,6 @@ const CommandCenterDashboard = () => {
                           <div className="absolute top-4 right-4 w-8 h-8 border-t-2 border-r-2 border-[#005FA3] animate-pulse" />
                           <div className="absolute bottom-4 left-4 w-8 h-8 border-b-2 border-l-2 border-[#005FA3] animate-pulse" />
                           <div className="absolute bottom-4 right-4 w-8 h-8 border-b-2 border-r-2 border-[#005FA3] animate-pulse" />
-                          
-                          {/* Scanning Text Overlay */}
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <div className="bg-[#005FA3]/90 backdrop-blur-sm px-6 py-3 rounded-lg shadow-xl">
-                              <div className="flex items-center space-x-3">
-                                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                <span className="text-white font-semibold text-sm">Scanning Brand...</span>
-                              </div>
-                            </div>
-                          </div>
                         </div>
                       )}
                     </>
@@ -1381,18 +1443,18 @@ const CommandCenterDashboard = () => {
                     </div>
                   )}
                   
-                  {/* API Connection Error Warning */}
+                  {/* Model Connection Error Warning */}
                   {apiConnectionError && !isDetecting && isCameraActive && (
                     <div className="absolute top-16 right-4 bg-yellow-500/90 text-white px-3 py-2 rounded-lg text-xs font-medium z-10 max-w-xs shadow-lg">
                       <div className="flex items-start space-x-2">
                         <span>⚠️</span>
                         <div>
-                          <div className="font-bold mb-1">API Server Tidak Terhubung</div>
+                          <div className="font-bold mb-1">Model Tidak Ditemukan</div>
                           <div className="text-xs opacity-90">
-                            Jalankan API server dari folder engine-insight-quick:
+                            Pastikan model Teachable Machine tersedia di:
                           </div>
                           <div className="text-xs opacity-75 mt-1 font-mono">
-                            npm run api:server
+                            public/my_model/
                           </div>
                         </div>
                       </div>

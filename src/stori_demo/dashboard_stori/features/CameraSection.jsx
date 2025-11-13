@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Camera, Play, X } from 'lucide-react';
 
-const CameraSection = () => {
+const CameraSection = ({ enableTeachableMachine = false }) => {
   // Camera & Brand Detection States
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [cameraMode, setCameraMode] = useState('phone'); // 'phone' or 'ipwebcam'
   const [cameraStream, setCameraStream] = useState(null);
+  const [isStreaming, setIsStreaming] = useState(false);
   const [detectedBrand, setDetectedBrand] = useState(null);
   const [detectionConfidence, setDetectionConfidence] = useState(0);
   const [isDetecting, setIsDetecting] = useState(false);
@@ -16,18 +17,197 @@ const CameraSection = () => {
   const detectionIntervalRef = useRef(null);
   const snapshotIntervalRef = useRef(null);
   
-  // API Configuration - Brand Detection from engine-insight-quick
-  const BRAND_DETECTION_API_PORTS = [3000, 8080];
-  const getBrandDetectionAPI = () => {
-    const port = BRAND_DETECTION_API_PORTS[0];
-    return `http://localhost:${port}/detect-brand-realtime`;
-  };
-  const BRAND_DETECTION_API = getBrandDetectionAPI();
+  // Teachable Machine Model Configuration
+  const MODEL_URL = '/my_model/';
+  const modelRef = useRef(null);
+  const webcamRef = useRef(null);
+  const maxPredictionsRef = useRef(0);
+  const labelContainerRef = useRef(null);
+  const isLoopingRef = useRef(false);
   
   // IP Webcam Configuration
-  const IP_WEBCAM_URL = 'http://192.168.1.38:8080';
+  const IP_WEBCAM_URL = 'http://192.168.51.34:8080';
   const IP_WEBCAM_STREAM = `${IP_WEBCAM_URL}/video`;
   const IP_WEBCAM_SNAPSHOT = `${IP_WEBCAM_URL}/shot.jpg`;
+
+  // Wait for Teachable Machine CDN to load (only if enabled)
+  const waitForTMImage = async (maxWait = 5000) => {
+    if (!enableTeachableMachine) return null;
+    
+    const startTime = Date.now();
+    while (!window.tmImage && (Date.now() - startTime) < maxWait) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    if (!window.tmImage) {
+      throw new Error('Teachable Machine library not loaded. Please check if CDN scripts are loaded.');
+    }
+    return window.tmImage;
+  };
+
+  // Load Teachable Machine model (only if enabled)
+  const loadModel = async () => {
+    if (!enableTeachableMachine) {
+      return { success: false, tmImage: null };
+    }
+    
+    try {
+      // Wait for CDN to load
+      const tmImage = await waitForTMImage();
+      if (!tmImage) {
+        return { success: false, tmImage: null };
+      }
+      
+      const modelURL = MODEL_URL + "model.json";
+      const metadataURL = MODEL_URL + "metadata.json";
+      
+      // Load the model and metadata
+      const model = await tmImage.load(modelURL, metadataURL);
+      modelRef.current = model;
+      maxPredictionsRef.current = model.getTotalClasses();
+      
+      return { success: true, tmImage };
+    } catch (error) {
+      console.error('Error loading model:', error);
+      setApiConnectionError(true);
+      return { success: false, tmImage: null };
+    }
+  };
+
+  // Initialize Teachable Machine webcam (only if enabled)
+  const initTeachableMachine = async () => {
+    if (!enableTeachableMachine) {
+      // Fallback to regular getUserMedia if Teachable Machine is disabled
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { 
+          facingMode: 'environment',
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        }
+      });
+      
+      setCameraStream(stream);
+      
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        setIsStreaming(true);
+      }
+      return true;
+    }
+    
+    try {
+      // Load model first (this will also import tmImage)
+      const result = await loadModel();
+      if (!result.success || !result.tmImage) {
+        throw new Error('Failed to load model');
+      }
+      
+      const tmImage = result.tmImage;
+
+      // Setup webcam - use larger size to match display
+      const flip = true; // whether to flip the webcam
+      const webcam = new tmImage.Webcam(640, 480, flip); // width, height, flip
+      await webcam.setup(); // request access to the webcam
+      await webcam.play();
+      
+      webcamRef.current = webcam;
+      
+      // Append canvas to video element container
+      if (videoRef.current && webcam.canvas) {
+        const container = videoRef.current.parentNode;
+        if (container) {
+          // Remove any existing Teachable Machine canvas
+          const existingCanvas = container.querySelector('canvas[data-teachable-machine]');
+          if (existingCanvas) {
+            container.removeChild(existingCanvas);
+          }
+          
+          // Mark canvas for identification
+          webcam.canvas.setAttribute('data-teachable-machine', 'true');
+          
+          // Append canvas to container
+          container.appendChild(webcam.canvas);
+          
+          // Style the canvas to match video display
+          webcam.canvas.style.cssText = `
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: 1;
+          `;
+          
+          // Hide the video element since we're using the canvas
+          if (videoRef.current) {
+            videoRef.current.style.display = 'none';
+          }
+        }
+      }
+      
+      // Start prediction loop
+      isLoopingRef.current = true;
+      loop();
+      
+      return true;
+    } catch (error) {
+      console.error('Error initializing Teachable Machine:', error);
+      setApiConnectionError(true);
+      return false;
+    }
+  };
+
+  // Prediction loop (only if Teachable Machine is enabled)
+  const loop = async () => {
+    if (!enableTeachableMachine) return;
+    if (webcamRef.current && modelRef.current && isLoopingRef.current) {
+      webcamRef.current.update(); // update the webcam frame
+      await predict();
+      // Continue loop if camera is still active
+      if (webcamRef.current && modelRef.current && isLoopingRef.current) {
+        window.requestAnimationFrame(loop);
+      }
+    }
+  };
+
+  // Run prediction (only if Teachable Machine is enabled)
+  const predict = async () => {
+    if (!enableTeachableMachine) return;
+    if (!modelRef.current || !webcamRef.current) return;
+    
+    try {
+      setIsDetecting(true);
+      // predict can take in an image, video or canvas html element
+      const prediction = await modelRef.current.predict(webcamRef.current.canvas);
+      
+      // Find the highest confidence prediction
+      let highestConfidence = 0;
+      let bestPrediction = null;
+      
+      for (let i = 0; i < maxPredictionsRef.current; i++) {
+        if (prediction[i].probability > highestConfidence) {
+          highestConfidence = prediction[i].probability;
+          bestPrediction = prediction[i];
+        }
+      }
+      
+      // Update detected brand and confidence
+      if (bestPrediction && highestConfidence > 0.1) { // Only show if confidence > 10%
+        setDetectedBrand(bestPrediction.className);
+        setDetectionConfidence(Math.round(highestConfidence * 100));
+        setApiConnectionError(false);
+      } else {
+        setDetectedBrand(null);
+        setDetectionConfidence(0);
+      }
+    } catch (error) {
+      console.error('Prediction error:', error);
+      setDetectedBrand(null);
+      setDetectionConfidence(0);
+    } finally {
+      setIsDetecting(false);
+    }
+  };
 
   // Start camera stream
   const startCamera = async (mode = 'phone') => {
@@ -36,6 +216,15 @@ const CameraSection = () => {
       setIsCameraActive(true);
       
       if (mode === 'phone') {
+        if (enableTeachableMachine) {
+          // Use Teachable Machine for phone camera
+          const success = await initTeachableMachine();
+          if (!success) {
+            setIsCameraActive(false);
+            alert('Tidak dapat mengakses kamera HP. Pastikan izin kamera sudah diberikan dan model Teachable Machine tersedia.');
+          }
+        } else {
+          // Use regular getUserMedia if Teachable Machine is disabled
         const stream = await navigator.mediaDevices.getUserMedia({
           video: { 
             facingMode: 'environment',
@@ -48,22 +237,11 @@ const CameraSection = () => {
         
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
-          videoRef.current.onloadedmetadata = () => {
-            if (videoRef.current) {
-              videoRef.current.play().catch(err => {
-                console.error('Error playing video:', err);
-              });
+            setIsStreaming(true);
             }
-          };
-          videoRef.current.play().catch(err => {
-            console.error('Error playing video:', err);
-          });
         }
-        
-        setTimeout(() => {
-          startBrandDetection();
-        }, 1000);
       } else {
+        // IP Webcam mode - keep existing logic but use Teachable Machine for detection
         if (imgRef.current) {
           imgRef.current.src = IP_WEBCAM_STREAM;
           imgRef.current.onerror = () => {
@@ -78,9 +256,18 @@ const CameraSection = () => {
           };
         }
         
+        // Load model for IP Webcam detection (only if enabled)
+        if (enableTeachableMachine) {
+          const result = await loadModel();
+          if (result.success) {
         setTimeout(() => {
           startBrandDetection();
         }, 2000);
+          } else {
+            setIsCameraActive(false);
+            alert('Tidak dapat memuat model Teachable Machine.');
+          }
+        }
       }
     } catch (error) {
       console.error('Error accessing camera:', error);
@@ -93,18 +280,7 @@ const CameraSection = () => {
     }
   };
 
-  // Effect to ensure video stream is attached
-  useEffect(() => {
-    if (isCameraActive && cameraMode === 'phone' && cameraStream && videoRef.current) {
-      if (videoRef.current.srcObject !== cameraStream) {
-        videoRef.current.srcObject = cameraStream;
-        videoRef.current.play().catch(err => {
-          console.error('Error playing video in useEffect:', err);
-        });
-      }
-    }
-  }, [isCameraActive, cameraMode, cameraStream]);
-  
+  // Effect to ensure video stream is attached (for IP Webcam mode)
   useEffect(() => {
     if (isCameraActive && cameraMode === 'ipwebcam' && imgRef.current && !imgRef.current.src) {
       imgRef.current.src = IP_WEBCAM_STREAM;
@@ -114,6 +290,28 @@ const CameraSection = () => {
   // Stop camera stream
   const stopCamera = () => {
     setIsCameraActive(false);
+    setIsStreaming(false);
+    
+    // Stop prediction loop
+    isLoopingRef.current = false;
+    
+    // Stop Teachable Machine webcam (only if enabled)
+    if (enableTeachableMachine && webcamRef.current) {
+      webcamRef.current.stop();
+      
+      // Remove canvas from DOM
+      if (webcamRef.current.canvas && webcamRef.current.canvas.parentNode) {
+        webcamRef.current.canvas.parentNode.removeChild(webcamRef.current.canvas);
+      }
+      
+      webcamRef.current = null;
+    }
+    
+    // Show video element again if it was hidden
+    if (videoRef.current) {
+      videoRef.current.style.display = '';
+      videoRef.current.srcObject = null;
+    }
     
     if (cameraStream) {
       cameraStream.getTracks().forEach(track => track.stop());
@@ -122,10 +320,6 @@ const CameraSection = () => {
     
     if (imgRef.current) {
       imgRef.current.src = '';
-    }
-    
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
     }
     
     if (snapshotIntervalRef.current) {
@@ -142,37 +336,27 @@ const CameraSection = () => {
     setDetectionConfidence(0);
   };
 
-  // Capture frame and detect
+  // Capture frame and detect using Teachable Machine (for IP Webcam mode, only if enabled)
   const captureAndDetect = async () => {
-    if ((!imgRef.current && !videoRef.current) || !canvasRef.current || isDetecting) return;
+    if (!enableTeachableMachine) return; // Skip detection if Teachable Machine is disabled
+    if (!imgRef.current || !canvasRef.current || !modelRef.current || isDetecting) return;
     
     try {
       setIsDetecting(true);
       const canvas = canvasRef.current;
       const ctx = canvas.getContext('2d');
       
-      const sourceElement = imgRef.current || videoRef.current;
-      if (!sourceElement) return;
+      if (!imgRef.current) return;
       
-      const width = sourceElement.naturalWidth || sourceElement.videoWidth || 640;
-      const height = sourceElement.naturalHeight || sourceElement.videoHeight || 480;
+      const width = imgRef.current.naturalWidth || 640;
+      const height = imgRef.current.naturalHeight || 480;
       
       canvas.width = width;
       canvas.height = height;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       
-      let imageBase64;
-      
-      if (sourceElement === videoRef.current && videoRef.current) {
-        ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-        try {
-          imageBase64 = canvas.toDataURL('image/jpeg', 0.8);
-        } catch (error) {
-          console.error('Failed to export video canvas:', error);
-          throw error;
-        }
-      } else if (sourceElement === imgRef.current && imgRef.current) {
-        try {
+      try {
+        // Try to fetch fresh snapshot
           const snapshotUrl = IP_WEBCAM_SNAPSHOT + '?t=' + Date.now();
           const response = await fetch(snapshotUrl, { cache: 'no-cache' });
           
@@ -181,78 +365,66 @@ const CameraSection = () => {
           }
           
           const blob = await response.blob();
-          const reader = new FileReader();
-          imageBase64 = await new Promise((resolve, reject) => {
-            reader.onload = () => resolve(reader.result);
-            reader.onerror = () => reject(new Error('Failed to read IP webcam image'));
-            reader.readAsDataURL(blob);
+        const imageUrl = URL.createObjectURL(blob);
+        const img = new Image();
+        
+        await new Promise((resolve, reject) => {
+          img.onload = () => {
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            URL.revokeObjectURL(imageUrl);
+            resolve();
+          };
+          img.onerror = () => {
+            URL.revokeObjectURL(imageUrl);
+            // Fallback to drawing from imgRef
+            try {
+              ctx.drawImage(imgRef.current, 0, 0, canvas.width, canvas.height);
+              resolve();
+            } catch (canvasError) {
+              reject(new Error('Failed to draw image'));
+            }
+          };
+          img.src = imageUrl;
           });
         } catch (fetchError) {
           console.warn('Failed to fetch IP webcam snapshot:', fetchError);
           try {
             ctx.drawImage(imgRef.current, 0, 0, canvas.width, canvas.height);
-            imageBase64 = canvas.toDataURL('image/jpeg', 0.8);
           } catch (canvasError) {
             console.error('Canvas draw failed:', canvasError);
             throw new Error('IP webcam CORS restriction');
           }
+      }
+      
+      // Use Teachable Machine to predict
+      const prediction = await modelRef.current.predict(canvas);
+      
+      // Find the highest confidence prediction
+      let highestConfidence = 0;
+      let bestPrediction = null;
+      
+      for (let i = 0; i < maxPredictionsRef.current; i++) {
+        if (prediction[i].probability > highestConfidence) {
+          highestConfidence = prediction[i].probability;
+          bestPrediction = prediction[i];
         }
       }
       
-      // Try multiple ports
-      let lastError = null;
-      for (const port of BRAND_DETECTION_API_PORTS) {
-        let timeoutId = null;
-        try {
-          const apiUrl = `http://localhost:${port}/detect-brand-realtime`;
-          const controller = new AbortController();
-          timeoutId = setTimeout(() => controller.abort(), 5000);
-          
-          const response = await fetch(apiUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ image_base64: imageBase64 }),
-            signal: controller.signal
-          });
-          
-          clearTimeout(timeoutId);
-          timeoutId = null;
-          
-          if (!response.ok) {
-            throw new Error(`API request failed with status ${response.status}`);
-          }
-          
-          const result = await response.json();
-          
-          if (result.detected && result.brand) {
-            setDetectedBrand(result.brand);
-            setDetectionConfidence(Math.round(result.confidence * 100));
-            setApiConnectionError(false);
-            return;
-          } else {
-            setDetectedBrand(null);
-            setDetectionConfidence(0);
-            setApiConnectionError(false);
-            return;
-          }
-        } catch (error) {
-          if (timeoutId) {
-            clearTimeout(timeoutId);
-          }
-          lastError = error;
-        }
-      }
-      
-      if (lastError) {
-        console.error('All API ports failed:', lastError);
-        setApiConnectionError(true);
+      // Update detected brand and confidence
+      if (bestPrediction && highestConfidence > 0.1) { // Only show if confidence > 10%
+        setDetectedBrand(bestPrediction.className);
+        setDetectionConfidence(Math.round(highestConfidence * 100));
+        setApiConnectionError(false);
+      } else {
         setDetectedBrand(null);
         setDetectionConfidence(0);
+        setApiConnectionError(false);
       }
     } catch (error) {
       console.error('Error detecting brand:', error);
       setDetectedBrand(null);
       setDetectionConfidence(0);
+      setApiConnectionError(true);
     } finally {
       setIsDetecting(false);
     }
@@ -272,6 +444,21 @@ const CameraSection = () => {
   // Cleanup on unmount
   useEffect(() => {
     return () => {
+      // Stop prediction loop
+      isLoopingRef.current = false;
+      
+      // Stop Teachable Machine webcam (only if enabled)
+      if (enableTeachableMachine && webcamRef.current) {
+        webcamRef.current.stop();
+        
+        // Remove canvas from DOM
+        if (webcamRef.current.canvas && webcamRef.current.canvas.parentNode) {
+          webcamRef.current.canvas.parentNode.removeChild(webcamRef.current.canvas);
+        }
+        
+        webcamRef.current = null;
+      }
+      
       if (cameraStream) {
         cameraStream.getTracks().forEach(track => track.stop());
       }
@@ -287,9 +474,10 @@ const CameraSection = () => {
       if (videoRef.current) {
         videoRef.current.src = '';
         videoRef.current.srcObject = null;
+        videoRef.current.style.display = '';
       }
     };
-  }, [cameraStream]);
+  }, [cameraStream, enableTeachableMachine]);
 
   return (
     <>
@@ -365,8 +553,9 @@ const CameraSection = () => {
                     left: 0,
                     width: '100%',
                     height: '100%',
-                    zIndex: 1,
-                    backgroundColor: '#000'
+                    zIndex: enableTeachableMachine ? 0 : 1, // Lower z-index when Teachable Machine canvas is active
+                    backgroundColor: '#000',
+                    display: enableTeachableMachine && webcamRef.current ? 'none' : 'block' // Hide when Teachable Machine canvas is active
                   }}
                 />
               )}
@@ -390,8 +579,8 @@ const CameraSection = () => {
               
               <canvas ref={canvasRef} className="hidden" />
               
-              {/* Scanning Animation */}
-              {isDetecting && (
+              {/* Scanning Animation - Only show if Teachable Machine is enabled */}
+              {enableTeachableMachine && isDetecting && (
                 <div className="absolute inset-0 z-20 pointer-events-none">
                   <div 
                     className="absolute left-0 right-0 h-1 bg-gradient-to-r from-transparent via-blue-500 to-transparent shadow-[0_0_20px_rgba(59,130,246,0.8)]"
@@ -408,14 +597,6 @@ const CameraSection = () => {
                   <div className="absolute top-4 right-4 w-8 h-8 border-t-2 border-r-2 border-blue-500 animate-pulse" />
                   <div className="absolute bottom-4 left-4 w-8 h-8 border-b-2 border-l-2 border-blue-500 animate-pulse" />
                   <div className="absolute bottom-4 right-4 w-8 h-8 border-b-2 border-r-2 border-blue-500 animate-pulse" />
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="bg-blue-600/90 backdrop-blur-sm px-6 py-3 rounded-lg shadow-xl">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        <span className="text-white font-semibold text-sm">Scanning Brand...</span>
-                      </div>
-                    </div>
-                  </div>
                 </div>
               )}
             </>
@@ -445,8 +626,8 @@ const CameraSection = () => {
             </div>
           )}
 
-          {/* Brand Detection Result */}
-          {detectedBrand && (
+          {/* Brand Detection Result - Only show if Teachable Machine is enabled */}
+          {enableTeachableMachine && detectedBrand && (
             <div className="absolute top-4 left-4 bg-blue-600/90 text-white px-4 py-2 rounded-lg text-sm font-medium shadow-lg z-10">
               <div className="flex items-center space-x-2">
                 <span>🏷️</span>
@@ -458,28 +639,34 @@ const CameraSection = () => {
             </div>
           )}
 
-          {/* Detection Status */}
-          {isDetecting && (
+          {/* Detection Status - Only show if Teachable Machine is enabled */}
+          {enableTeachableMachine && isDetecting && (
             <div className="absolute top-4 right-4 bg-gray-800/90 text-white px-3 py-2 rounded-lg text-xs font-medium z-10">
               🔍 Detecting...
             </div>
           )}
           
-          {/* API Error */}
-          {apiConnectionError && !isDetecting && isCameraActive && (
+          {/* Model Error - Only show if Teachable Machine is enabled */}
+          {enableTeachableMachine && apiConnectionError && !isDetecting && isCameraActive && (
             <div className="absolute top-16 right-4 bg-yellow-500/90 text-white px-3 py-2 rounded-lg text-xs font-medium z-10 max-w-xs shadow-lg">
               <div className="flex items-start space-x-2">
                 <span>⚠️</span>
                 <div>
-                  <div className="font-bold mb-1">API Server Tidak Terhubung</div>
-                  <div className="text-xs opacity-90">Pastikan API server sudah dijalankan</div>
+                  <div className="font-bold mb-1">Model Tidak Ditemukan</div>
+                  <div className="text-xs opacity-90">
+                    Pastikan model Teachable Machine tersedia di:
+                  </div>
+                  <div className="text-xs opacity-75 mt-1 font-mono">
+                    public/my_model/
+                  </div>
                 </div>
               </div>
             </div>
           )}
         </div>
 
-        {/* Metadata */}
+        {/* Metadata - Only show brand detection if Teachable Machine is enabled */}
+        {enableTeachableMachine ? (
         <div className="grid grid-cols-3 gap-4">
           <div className="bg-gray-50 rounded-lg p-3">
             <div className="text-xs text-gray-600 mb-1">Detected Brand</div>
@@ -511,6 +698,18 @@ const CameraSection = () => {
             </div>
           </div>
         </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-4">
+            <div className="bg-gray-50 rounded-lg p-3">
+              <div className="text-xs text-gray-600 mb-1">Camera Status</div>
+              <div className={`text-sm font-medium ${
+                isCameraActive ? 'text-green-500' : 'text-gray-500'
+              }`}>
+                {isCameraActive ? 'Active' : 'Inactive'}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </>
   );

@@ -442,13 +442,18 @@ const ThermalDetection = ({ onThermalEvent }) => {
                 'thermal-warning-near-max'
               );
               
-              onThermalEvent({
-                temperature: currentTemp,
-                status: 'WARNING',
-                brand: brand,
-                confidence: confidence || 0,
-                reason: `Suhu berada pada maksimum ± 10% (${maxTempMin.toFixed(1)}°C - ${maxTempMax.toFixed(1)}°C) selama 5 detik`
-              });
+              console.log('🔥 Thermal event triggered (near-max):', { temperature: currentTemp, status: 'WARNING', brand });
+              if (onThermalEvent) {
+                onThermalEvent({
+                  temperature: currentTemp,
+                  status: 'WARNING',
+                  brand: brand || 'Unknown',
+                  confidence: confidence || 0,
+                  reason: `Suhu berada pada maksimum ± 10% (${maxTempMin.toFixed(1)}°C - ${maxTempMax.toFixed(1)}°C) selama 5 detik`
+                });
+              } else {
+                console.error('❌ onThermalEvent is not defined!');
+              }
               return;
             }
           }
@@ -467,8 +472,48 @@ const ThermalDetection = ({ onThermalEvent }) => {
     const status = isOverDanger ? 'DANGER' : 'WARNING';
     const history = tempTimeHistoryRef.current;
     
+    // Deteksi langsung: Kirim event segera ketika suhu melewati threshold
+    // (tanpa menunggu konsistensi 5 detik)
+    const immediateEventKey = `${brand}-${status}-immediate`;
+    const lastImmediateEventTime = lastEventTimeRef.current[immediateEventKey] || 0;
+    
+    // Kirim event langsung dengan debounce 2 detik (untuk DANGER) atau 3 detik (untuk WARNING)
+    const debounceTime = status === 'DANGER' ? 2000 : 3000;
+    
+    if (currentTime - lastImmediateEventTime >= debounceTime) {
+      // Kirim event langsung
+      lastEventTimeRef.current[immediateEventKey] = currentTime;
+      
+      // Show browser notification
+      const notificationTitle = status === 'DANGER' 
+        ? '🚨 DANGER: Komponen Overheat!' 
+        : '⚠️ WARNING: Suhu Tinggi Terdeteksi';
+      const notificationBody = status === 'DANGER'
+        ? `Suhu ${currentTemp.toFixed(1)}°C melebihi batas bahaya (${danger}°C) untuk ${brand}. TINDAKAN SEGERA DIPERLUKAN!`
+        : `Suhu ${currentTemp.toFixed(1)}°C melebihi batas peringatan (${warning}°C) untuk ${brand}.`;
+      
+      showBrowserNotification(
+        notificationTitle,
+        notificationBody,
+        `thermal-${status.toLowerCase()}-immediate`
+      );
+      
+      console.log('🔥 Thermal event triggered:', { temperature: currentTemp, status, brand, confidence: confidence || 0 });
+      if (onThermalEvent) {
+        onThermalEvent({
+          temperature: currentTemp,
+          status: status,
+          brand: brand || 'Unknown', // Pastikan brand selalu ada
+          confidence: confidence || 0,
+          reason: `Suhu melebihi batas ${status === 'DANGER' ? 'bahaya' : 'peringatan'}`
+        });
+      } else {
+        console.error('❌ onThermalEvent is not defined!');
+      }
+    }
+    
     if (history.length < 2) {
-      return; // Belum cukup data untuk analisis
+      return; // Belum cukup data untuk analisis konsistensi/lonjakan
     }
     
     // Deteksi 1: Konsistensi panas (suhu konsisten panas selama 5 detik)
@@ -502,13 +547,18 @@ const ThermalDetection = ({ onThermalEvent }) => {
             `thermal-${status.toLowerCase()}-consistent`
           );
           
-          onThermalEvent({
-            temperature: currentTemp,
-            status: status,
-            brand: brand,
-            confidence: confidence || 0, // Gunakan confidence dari state atau default 0
-            reason: 'Suhu konsisten panas selama 5 detik'
-          });
+          console.log('🔥 Thermal event triggered (consistent):', { temperature: currentTemp, status, brand });
+          if (onThermalEvent) {
+            onThermalEvent({
+              temperature: currentTemp,
+              status: status,
+              brand: brand || 'Unknown',
+              confidence: confidence || 0, // Gunakan confidence dari state atau default 0
+              reason: 'Suhu konsisten panas selama 5 detik'
+            });
+          } else {
+            console.error('❌ onThermalEvent is not defined!');
+          }
           return;
         }
       }
@@ -543,13 +593,18 @@ const ThermalDetection = ({ onThermalEvent }) => {
             `thermal-${status.toLowerCase()}-spike`
           );
           
-          onThermalEvent({
-            temperature: currentTemp,
-            status: status,
-            brand: brand,
-            confidence: confidence || 0, // Gunakan confidence dari state atau default 0
-            reason: `Lonjakan suhu tiba-tiba: +${tempChange.toFixed(1)}°C dalam ${(timeDiff / 1000).toFixed(1)} detik`
-          });
+          console.log('🔥 Thermal event triggered (spike):', { temperature: currentTemp, status, brand });
+          if (onThermalEvent) {
+            onThermalEvent({
+              temperature: currentTemp,
+              status: status,
+              brand: brand || 'Unknown',
+              confidence: confidence || 0, // Gunakan confidence dari state atau default 0
+              reason: `Lonjakan suhu tiba-tiba: +${tempChange.toFixed(1)}°C dalam ${(timeDiff / 1000).toFixed(1)} detik`
+            });
+          } else {
+            console.error('❌ onThermalEvent is not defined!');
+          }
           return;
         }
       }
@@ -823,75 +878,92 @@ const ThermalDetection = ({ onThermalEvent }) => {
       // Predict brand
       const prediction = await predictBrand();
       
+      // Gunakan brand yang terdeteksi atau default
+      const currentBrand = (prediction && prediction.confidence >= 80) ? prediction.brand : (detectedBrand || 'Gilbarco');
+      const currentConfidence = (prediction && prediction.confidence >= 80) ? prediction.confidence : confidence;
+      
       if (prediction && prediction.confidence >= 80) {
         setDetectedBrand(prediction.brand);
         setConfidence(prediction.confidence);
+      }
+      
+      // Get status menggunakan suhu yang sudah ditentukan (Arduino atau simulasi)
+      const statusInfo = getTemperatureStatus(temp, currentBrand);
+      setStatus(statusInfo.status);
+      
+      // Add to history
+      tempHistoryRef.current.push(temp);
+      brandHistoryRef.current.push(currentBrand);
+      statusHistoryRef.current.push(statusInfo.status);
+      
+      // Limit history size
+      if (tempHistoryRef.current.length > 1500) {
+        tempHistoryRef.current.shift();
+        brandHistoryRef.current.shift();
+        statusHistoryRef.current.shift();
+      }
+      
+      // Notify parent component jika ada warning/danger
+      // Untuk simulasi RGB, kirim event langsung ketika suhu melewati threshold
+      if (onThermalEvent && (statusInfo.status === 'WARNING' || statusInfo.status === 'DANGER' || statusInfo.status === 'TOO COLD')) {
+        const eventKey = `${currentBrand}-${statusInfo.status}`;
+        const currentTime = Date.now();
+        const lastEventTime = lastEventTimeRef.current[eventKey] || 0;
         
-        // Get status menggunakan suhu yang sudah ditentukan (Arduino atau simulasi)
-        const statusInfo = getTemperatureStatus(temp, prediction.brand);
-        setStatus(statusInfo.status);
+        // Kirim event langsung dengan debounce lebih pendek (2 detik) untuk respons cepat
+        // Tapi tetap ada debounce untuk menghindari spam
+        const debounceTime = statusInfo.status === 'DANGER' ? 2000 : 3000; // DANGER lebih cepat
         
-        // Add to history
-        tempHistoryRef.current.push(temp);
-        brandHistoryRef.current.push(prediction.brand);
-        statusHistoryRef.current.push(statusInfo.status);
-        
-        // Limit history size
-        if (tempHistoryRef.current.length > 1500) {
-          tempHistoryRef.current.shift();
-          brandHistoryRef.current.shift();
-          statusHistoryRef.current.shift();
-        }
-        
-        // Notify parent component jika ada warning/danger (dengan debounce)
-        if (onThermalEvent && (statusInfo.status === 'WARNING' || statusInfo.status === 'DANGER' || statusInfo.status === 'TOO COLD')) {
-          const eventKey = `${prediction.brand}-${statusInfo.status}`;
-          const currentTime = Date.now();
-          const lastEventTime = lastEventTimeRef.current[eventKey] || 0;
+        if (currentTime - lastEventTime >= debounceTime) {
+          lastEventTimeRef.current[eventKey] = currentTime;
           
-          // Hanya kirim event jika sudah lebih dari 10 detik sejak event terakhir dengan status yang sama
-          if (currentTime - lastEventTime >= EVENT_DEBOUNCE_MS) {
-            lastEventTimeRef.current[eventKey] = currentTime;
+          // Show browser notification untuk kasus simulasi RGB (jika tidak menggunakan Arduino)
+          // Untuk Arduino, notifikasi sudah ditangani di checkTemperatureAnomaly
+          if (!useArduinoTemp || arduinoTemperature === null) {
+            const limits = TEMP_LIMITS[currentBrand] || { min: 0, normalMax: 45, warning: 45, danger: 50 };
+            const { warning, danger } = limits;
             
-            // Show browser notification untuk kasus simulasi RGB (jika tidak menggunakan Arduino)
-            // Untuk Arduino, notifikasi sudah ditangani di checkTemperatureAnomaly
-            if (!useArduinoTemp || arduinoTemperature === null) {
-              const limits = TEMP_LIMITS[prediction.brand] || { min: 0, normalMax: 45, warning: 45, danger: 50 };
-              const { warning, danger } = limits;
-              
-              let notificationTitle, notificationBody;
-              if (statusInfo.status === 'DANGER') {
-                notificationTitle = '🚨 DANGER: Komponen Overheat!';
-                notificationBody = `Suhu ${temp.toFixed(1)}°C melebihi batas bahaya (${danger}°C) untuk ${prediction.brand}. TINDAKAN SEGERA DIPERLUKAN!`;
-              } else if (statusInfo.status === 'WARNING') {
-                notificationTitle = '⚠️ WARNING: Suhu Tinggi Terdeteksi';
-                notificationBody = `Suhu ${temp.toFixed(1)}°C melebihi batas peringatan (${warning}°C) untuk ${prediction.brand}.`;
-              } else if (statusInfo.status === 'TOO COLD') {
-                notificationTitle = '❄️ WARNING: Suhu Terlalu Rendah';
-                notificationBody = `Suhu ${temp.toFixed(1)}°C di bawah minimum operasi untuk ${prediction.brand}.`;
-              }
-              
-              if (notificationTitle && notificationBody) {
-                showBrowserNotification(
-                  notificationTitle,
-                  notificationBody,
-                  `thermal-${statusInfo.status.toLowerCase()}-detection`
-                );
-              }
+            let notificationTitle, notificationBody;
+            if (statusInfo.status === 'DANGER') {
+              notificationTitle = '🚨 DANGER: Komponen Overheat!';
+              notificationBody = `Suhu ${temp.toFixed(1)}°C melebihi batas bahaya (${danger}°C) untuk ${currentBrand}. TINDAKAN SEGERA DIPERLUKAN!`;
+            } else if (statusInfo.status === 'WARNING') {
+              notificationTitle = '⚠️ WARNING: Suhu Tinggi Terdeteksi';
+              notificationBody = `Suhu ${temp.toFixed(1)}°C melebihi batas peringatan (${warning}°C) untuk ${currentBrand}.`;
+            } else if (statusInfo.status === 'TOO COLD') {
+              notificationTitle = '❄️ WARNING: Suhu Terlalu Rendah';
+              notificationBody = `Suhu ${temp.toFixed(1)}°C di bawah minimum operasi untuk ${currentBrand}.`;
             }
             
+            if (notificationTitle && notificationBody) {
+              showBrowserNotification(
+                notificationTitle,
+                notificationBody,
+                `thermal-${statusInfo.status.toLowerCase()}-detection`
+              );
+            }
+          }
+          
+          console.log('🔥 Thermal event triggered (RGB):', { temperature: temp, status: statusInfo.status, brand: currentBrand, confidence: currentConfidence });
+          if (onThermalEvent) {
             onThermalEvent({
               temperature: temp,
               status: statusInfo.status,
-              brand: prediction.brand,
-              confidence: prediction.confidence
+              brand: currentBrand || 'Unknown', // Pastikan brand selalu ada
+              confidence: currentConfidence || 0,
+              reason: `Suhu melebihi batas ${statusInfo.status === 'DANGER' ? 'bahaya' : statusInfo.status === 'WARNING' ? 'peringatan' : 'minimum'}`
             });
+          } else {
+            console.error('❌ onThermalEvent is not defined!');
           }
         }
-        
-        // Check if should send to backend
-        await sendDataToBackend();
-      } else {
+      }
+      
+      // Check if should send to backend
+      await sendDataToBackend();
+      
+      // Jika tidak ada prediction atau confidence rendah
+      if (!prediction || prediction.confidence < 80) {
         setDetectedBrand('No Dispenser');
         setConfidence(prediction ? prediction.confidence : 0);
         setStatus('N/A');
@@ -938,10 +1010,6 @@ const ThermalDetection = ({ onThermalEvent }) => {
           const statusInfo = getTemperatureStatus(temp, detectedBrand);
           overlayCtx.fillStyle = statusInfo.color;
           overlayCtx.fillText(`Status: ${statusInfo.status}`, 20, 95);
-        } else {
-          overlayCtx.fillStyle = '#FF0000';
-          overlayCtx.font = 'bold 20px Arial';
-          overlayCtx.fillText('No Dispenser Detected', 20, 40);
         }
       }
       

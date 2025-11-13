@@ -67,10 +67,12 @@ const ThermalWatch = () => {
 
   // Fungsi untuk menambahkan event baru dari ThermalDetection
   const addThermalEvent = useCallback((eventData) => {
+    console.log('📥 addThermalEvent called with:', eventData);
     const { temperature, status, brand, confidence, reason } = eventData;
     
     // Hanya tambahkan event jika status WARNING atau DANGER
     if (status !== 'WARNING' && status !== 'DANGER' && status !== 'TOO COLD') {
+      console.log('❌ Event rejected - status not WARNING/DANGER/TOO_COLD:', status);
       return;
     }
 
@@ -124,8 +126,10 @@ const ThermalWatch = () => {
     };
 
     // Tambahkan event baru ke state (prepend untuk menampilkan yang terbaru di atas)
+    console.log('✅ Adding thermal event to state:', processedEvent);
     setThermalEvents(prev => {
       const updated = [processedEvent, ...prev].slice(0, 100); // Limit to 100 most recent events
+      console.log('📊 Updated thermal events count:', updated.length);
       return updated;
     });
     

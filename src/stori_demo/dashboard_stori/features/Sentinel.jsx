@@ -6,6 +6,7 @@ import { useAuth } from '../../auth/AuthContext';
 import CameraSection from './CameraSection';
 import JerigenDetection from './JerigenDetection';
 import PlatNomorDetection from './PlatNomorDetection';
+import CarMotionDetection from './CarMotionDetection';
 import PrivacySecurityPanel from './privacy/PrivacySecurityPanel';
 import { encrypt_data, anonymize_event } from './privacy/privacyUtils';
 import { securityLog } from './privacy/securityLog';
@@ -24,6 +25,7 @@ const Sentinel = () => {
   const isInitialMountRef = useRef(true);
   const userInteractedRef = useRef(false);
   const lastJerigenAudioTimeRef = useRef(0); // Track kapan audio jerigen terakhir diputar
+  const lastCarMotionAudioTimeRef = useRef(0); // Track kapan audio car motion terakhir diputar
   
   // IP Webcam Configuration (HTTPS for two-way audio)
   const IP_WEBCAM_URL = 'https://192.168.1.38:8080';
@@ -47,6 +49,105 @@ const Sentinel = () => {
   ];
   
   const [alerts, setAlerts] = useState(initialAlerts);
+
+  // Handler untuk ketika car motion terdeteksi
+  const handleCarMotionDetected = (detectionData) => {
+    console.log('🚗 [SENTINEL] ========== handleCarMotionDetected CALLED ==========');
+    console.log('🚗 [SENTINEL] Detection data received:', detectionData);
+    
+    const now = new Date();
+    const timeString = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+    
+    // Format duration untuk display
+    const formatDuration = (seconds) => {
+      if (seconds === null || seconds === undefined) return '00:00:00';
+      const hours = Math.floor(seconds / 3600);
+      const minutes = Math.floor((seconds % 3600) / 60);
+      const secs = Math.floor(seconds % 60);
+      return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    };
+    
+    const newAlert = {
+      id: Date.now(),
+      time: timeString,
+      type: detectionData.isMoving ? 'Car Moving Detected' : 'Car Stationary Detected',
+      location: 'Camera Feed',
+      severity: detectionData.isMoving ? 'warning' : 'info',
+      confidence: detectionData.cars && detectionData.cars.length > 0 
+        ? Math.round((detectionData.cars[0].confidence || 0.8) * 100) 
+        : 80,
+      status: 'Active',
+      description: detectionData.isMoving 
+        ? `Mobil bergerak terdeteksi (${detectionData.cars?.length || 0} mobil)`
+        : `Mobil diam terdeteksi selama ${formatDuration(detectionData.duration)} (${detectionData.cars?.length || 0} mobil)`,
+      duration: detectionData.duration,
+      isMoving: detectionData.isMoving,
+      timestamp: detectionData.timestamp
+    };
+    
+    console.log('🚗 [SENTINEL] New alert created:', newAlert);
+    
+    // Add to alerts
+    setAlerts(prevAlerts => {
+      console.log('🚗 [SENTINEL] Previous alerts count:', prevAlerts.length);
+      
+      // Check if similar alert already exists (within last 30 seconds)
+      const recentSimilarAlert = prevAlerts.find(alert => 
+        (alert.type === 'Car Moving Detected' || alert.type === 'Car Stationary Detected') && 
+        alert.status === 'Active' &&
+        new Date(alert.timestamp) > new Date(Date.now() - 30000)
+      );
+      
+      console.log('🚗 [SENTINEL] Recent similar alert found:', recentSimilarAlert ? 'YES' : 'NO');
+      
+      let updatedAlerts;
+      if (recentSimilarAlert) {
+        // Update existing alert
+        console.log('🚗 [SENTINEL] Updating existing alert (ID:', recentSimilarAlert.id, ')');
+        updatedAlerts = prevAlerts.map(alert => 
+          alert.id === recentSimilarAlert.id 
+            ? { ...newAlert, id: alert.id }
+            : alert
+        );
+      } else {
+        // Add new alert
+        console.log('🚗 [SENTINEL] Adding NEW alert');
+        updatedAlerts = [newAlert, ...prevAlerts];
+      }
+      
+      // Auto-play audio untuk car motion detection
+      // Debounce: hanya play audio jika lebih dari 15 detik sejak audio terakhir diputar
+      // Atau jika ini adalah alert baru (tidak ada recent similar alert)
+      const timeSinceLastAudio = Date.now() - lastCarMotionAudioTimeRef.current;
+      const AUDIO_DEBOUNCE_MS = 15000; // 15 detik debounce untuk audio (mencegah spam)
+      const isNewAlert = !recentSimilarAlert;
+      const shouldPlayAudio = isNewAlert || (timeSinceLastAudio > AUDIO_DEBOUNCE_MS);
+      
+      if (shouldPlayAudio) {
+        console.log('🔔 [SENTINEL] Car motion detected! Attempting to play audio...');
+        console.log('🔔 [SENTINEL] Is new alert:', isNewAlert);
+        console.log('🔔 [SENTINEL] Time since last audio:', timeSinceLastAudio, 'ms (need >', AUDIO_DEBOUNCE_MS, 'ms)');
+        console.log('🔔 [SENTINEL] Condition met: Audio will play!');
+        
+        // Force user interaction flag jika belum set (untuk memastikan audio bisa play)
+        if (!userInteractedRef.current) {
+          console.log('⚠️ [SENTINEL] User interaction not detected, forcing...');
+          userInteractedRef.current = true;
+        }
+        
+        // Update waktu audio terakhir diputar
+        lastCarMotionAudioTimeRef.current = Date.now();
+        
+        // Play audio langsung
+        console.log('🔔 [SENTINEL] Calling playAudioDirectly for car motion...');
+        playAudioDirectly(newAlert);
+      } else {
+        console.log('🔔 [SENTINEL] Audio skipped (debounce active or not new alert)');
+      }
+      
+      return updatedAlerts;
+    });
+  };
 
   // Handler untuk ketika plat nomor terdeteksi
   const handlePlatDetected = (detectionData) => {
@@ -349,6 +450,16 @@ const Sentinel = () => {
         critical: `Plat nomor kendaraan terdeteksi di ${alert.location}. Confidence: ${alert.confidence}%.`,
         warning: `Plat nomor kendaraan terdeteksi di ${alert.location}. Confidence: ${alert.confidence}%.`,
         info: `Informasi: Plat nomor kendaraan terdeteksi di ${alert.location}. Confidence: ${alert.confidence}%.`
+      },
+      'Car Moving Detected': {
+        critical: `Peringatan! Mobil bergerak terdeteksi di ${alert.location}.`,
+        warning: `Peringatan! Mobil bergerak terdeteksi di ${alert.location}.`,
+        info: `Informasi: Mobil bergerak terdeteksi di ${alert.location}.`
+      },
+      'Car Stationary Detected': {
+        critical: `Peringatan! Mobil diam terdeteksi di ${alert.location} selama ${alert.duration ? formatDuration(alert.duration) : 'N/A'}. Perlu perhatian.`,
+        warning: `Peringatan! Mobil diam terdeteksi di ${alert.location} selama ${alert.duration ? formatDuration(alert.duration) : 'N/A'}. Perlu perhatian.`,
+        info: `Informasi: Mobil diam terdeteksi di ${alert.location} selama ${alert.duration ? formatDuration(alert.duration) : 'N/A'}.`
       }
     };
 
@@ -364,6 +475,15 @@ const Sentinel = () => {
     
     // Default fallback
     return `Peringatan! ${alert.type} terdeteksi di ${alert.location}.`;
+  };
+  
+  // Helper function untuk format duration
+  const formatDuration = (seconds) => {
+    if (seconds === null || seconds === undefined) return '00:00:00';
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
 
   // Send audio to IP Webcam via two-way audio
@@ -949,6 +1069,9 @@ const Sentinel = () => {
           
           {/* Plat Nomor Detection Section */}
           <PlatNomorDetection onPlatDetected={handlePlatDetected} />
+          
+          {/* Car Motion Detection Section */}
+          <CarMotionDetection onCarMotionDetected={handleCarMotionDetected} />
 
           {/* Main Content Grid */}
           <div className="grid grid-cols-3 gap-6">

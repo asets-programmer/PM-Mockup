@@ -25,10 +25,11 @@ const PlatNomorDetection = ({ onPlatDetected }) => {
   const lastDetectionTimeRef = useRef(0);
   const DETECTION_DEBOUNCE_MS = 5000; // 5 detik - hanya kirim event sekali per 5 detik
   
-  // Audio alert untuk mobil mewah
+  // Audio alert untuk Non subsidized car
   const lastAudioAlertTimeRef = useRef(0);
   const AUDIO_ALERT_DEBOUNCE_MS = 8000; // 8 detik - hanya play audio sekali per 8 detik
   const audioAlertRef = useRef(null);
+  const userInteractedRef = useRef(false); // Flag untuk user interaction (autoplay policy)
   
   // Configuration
   const MODEL_URL = '/model_plat/model.json';
@@ -146,16 +147,19 @@ const PlatNomorDetection = ({ onPlatDetected }) => {
     return confidence >= CONFIDENCE_THRESHOLD;
   };
 
-  // Fungsi untuk memutar audio alert narasi ketika mobil mewah terdeteksi
+  // Fungsi untuk memutar audio alert narasi ketika Non subsidized car terdeteksi
   const playAudioAlert = () => {
     const currentTime = Date.now();
     
     // Debounce: hanya play audio jika sudah lebih dari 8 detik sejak terakhir
     if (currentTime - lastAudioAlertTimeRef.current < AUDIO_ALERT_DEBOUNCE_MS) {
+      console.log('⏸️ Audio debounced, menunggu...');
       return;
     }
     
     lastAudioAlertTimeRef.current = currentTime;
+    
+    console.log('🔊 Memulai audio alert...');
     
     try {
       // Cek apakah Speech Synthesis API tersedia
@@ -168,55 +172,88 @@ const PlatNomorDetection = ({ onPlatDetected }) => {
       // Cancel any ongoing speech
       window.speechSynthesis.cancel();
       
-      // Buat utterance dengan narasi yang diminta
-      const utterance = new SpeechSynthesisUtterance(
-        'Mobil non-subsidi terdeteksi. Harap isi Pertamax. Pindah jalur segera.'
-      );
-      
-      // Set properties untuk speech
-      utterance.lang = 'id-ID'; // Bahasa Indonesia
-      utterance.rate = 1.0; // Kecepatan bicara (0.1 - 10, default 1)
-      utterance.pitch = 1.0; // Nada suara (0 - 2, default 1)
-      utterance.volume = 1.0; // Volume (0 - 1, default 1)
-      
-      // Coba gunakan voice Indonesia jika tersedia
-      const voices = window.speechSynthesis.getVoices();
-      const indonesianVoice = voices.find(voice => 
-        voice.lang.includes('id') || voice.lang.includes('ID')
-      );
-      
-      if (indonesianVoice) {
-        utterance.voice = indonesianVoice;
-      } else {
-        // Fallback ke voice default
-        utterance.voice = voices.find(voice => voice.default) || voices[0];
-      }
-      
-      // Event handlers
-      utterance.onstart = () => {
-        console.log('🔊 Audio narasi dimulai');
-      };
-      
-      utterance.onend = () => {
-        console.log('🔊 Audio narasi selesai');
-        // Clear reference setelah selesai
-        audioAlertRef.current = null;
-      };
-      
-      utterance.onerror = (event) => {
-        console.error('Error pada speech synthesis:', event.error);
-        // Fallback ke beep jika speech gagal
-        playBeepFallback();
-      };
-      
-      // Simpan reference untuk bisa di-cancel jika diperlukan
-      audioAlertRef.current = utterance;
-      
-      // Play speech
-      window.speechSynthesis.speak(utterance);
+      // Tunggu sebentar untuk memastikan cancel selesai
+      setTimeout(() => {
+        try {
+          // Buat utterance dengan narasi yang diminta
+          const utterance = new SpeechSynthesisUtterance(
+            'Mobil non-subsidi terdeteksi. Harap isi Pertamax. Pindah jalur segera.'
+          );
+          
+          // Set properties untuk speech
+          utterance.lang = 'id-ID'; // Bahasa Indonesia
+          utterance.rate = 1.0; // Kecepatan bicara (0.1 - 10, default 1)
+          utterance.pitch = 1.0; // Nada suara (0 - 2, default 1)
+          utterance.volume = 1.0; // Volume (0 - 1, default 1)
+          
+          // Coba gunakan voice Indonesia jika tersedia
+          const voices = window.speechSynthesis.getVoices();
+          console.log('🔊 Available voices:', voices.length);
+          
+          const indonesianVoice = voices.find(voice => 
+            voice.lang.includes('id') || voice.lang.includes('ID')
+          );
+          
+          if (indonesianVoice) {
+            utterance.voice = indonesianVoice;
+            console.log('🔊 Using Indonesian voice:', indonesianVoice.name);
+          } else {
+            // Fallback ke voice default
+            const defaultVoice = voices.find(voice => voice.default) || voices[0];
+            if (defaultVoice) {
+              utterance.voice = defaultVoice;
+              console.log('🔊 Using default voice:', defaultVoice.name);
+            }
+          }
+          
+          // Event handlers
+          utterance.onstart = () => {
+            console.log('✅ Audio narasi dimulai');
+          };
+          
+          utterance.onend = () => {
+            console.log('✅ Audio narasi selesai');
+            // Clear reference setelah selesai
+            audioAlertRef.current = null;
+          };
+          
+          utterance.onerror = (event) => {
+            console.error('❌ Error pada speech synthesis:', event.error);
+            console.error('Error details:', {
+              error: event.error,
+              type: event.type,
+              charIndex: event.charIndex,
+              charLength: event.charLength
+            });
+            // Fallback ke beep jika speech gagal
+            playBeepFallback();
+          };
+          
+          // Simpan reference untuk bisa di-cancel jika diperlukan
+          audioAlertRef.current = utterance;
+          
+          // Play speech
+          console.log('🔊 Attempting to speak...');
+          window.speechSynthesis.speak(utterance);
+          
+          // Double check setelah 100ms apakah speech benar-benar dimulai
+          setTimeout(() => {
+            if (window.speechSynthesis.pending || window.speechSynthesis.speaking) {
+              console.log('✅ Speech synthesis is active');
+            } else {
+              console.warn('⚠️ Speech synthesis tidak aktif, mencoba fallback...');
+              playBeepFallback();
+            }
+          }, 100);
+          
+        } catch (error) {
+          console.error('❌ Error dalam setTimeout speech:', error);
+          playBeepFallback();
+        }
+      }, 100);
       
     } catch (error) {
-      console.error('Error playing audio alert:', error);
+      console.error('❌ Error playing audio alert:', error);
       // Fallback ke beep jika ada error
       playBeepFallback();
     }
@@ -225,6 +262,7 @@ const PlatNomorDetection = ({ onPlatDetected }) => {
   // Fungsi fallback untuk memutar beep jika speech synthesis tidak tersedia
   const playBeepFallback = () => {
     try {
+      console.log('🔊 Memutar beep fallback...');
       const AudioContextClass = window.AudioContext || window.webkitAudioContext;
       if (!AudioContextClass) {
         console.warn('Web Audio API tidak tersedia');
@@ -232,27 +270,50 @@ const PlatNomorDetection = ({ onPlatDetected }) => {
       }
       
       const audioContext = new AudioContextClass();
-      const oscillator = audioContext.createOscillator();
-      const gainNode = audioContext.createGain();
       
-      oscillator.connect(gainNode);
-      gainNode.connect(audioContext.destination);
+      // Resume audio context jika suspended (browser autoplay policy)
+      if (audioContext.state === 'suspended') {
+        console.log('🔊 AudioContext suspended, attempting to resume...');
+        audioContext.resume().then(() => {
+          console.log('✅ AudioContext resumed');
+          playBeep(audioContext);
+        }).catch(err => {
+          console.error('❌ Failed to resume AudioContext:', err);
+        });
+      } else {
+        playBeep(audioContext);
+      }
       
-      oscillator.frequency.value = 800;
-      oscillator.type = 'sine';
-      
-      const now = audioContext.currentTime;
-      gainNode.gain.setValueAtTime(0.3, now);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
-      
-      oscillator.start(now);
-      oscillator.stop(now + 0.5);
-      
-      oscillator.onended = () => {
-        audioContext.close().catch(() => {});
-      };
+      function playBeep(ctx) {
+        try {
+          const oscillator = ctx.createOscillator();
+          const gainNode = ctx.createGain();
+          
+          oscillator.connect(gainNode);
+          gainNode.connect(ctx.destination);
+          
+          oscillator.frequency.value = 800;
+          oscillator.type = 'sine';
+          
+          const now = ctx.currentTime;
+          gainNode.gain.setValueAtTime(0.3, now);
+          gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+          
+          oscillator.start(now);
+          oscillator.stop(now + 0.5);
+          
+          oscillator.onended = () => {
+            ctx.close().catch(() => {});
+            console.log('✅ Beep selesai');
+          };
+          
+          console.log('✅ Beep dimulai');
+        } catch (error) {
+          console.error('❌ Error playing beep:', error);
+        }
+      }
     } catch (error) {
-      console.error('Beep fallback juga gagal:', error);
+      console.error('❌ Beep fallback juga gagal:', error);
     }
   };
   
@@ -385,9 +446,17 @@ const PlatNomorDetection = ({ onPlatDetected }) => {
           console.log('🔔 Detection:', detection.class, 'Confidence:', highestConfidence);
           console.log('📊 All predictions:', detection.allPredictions || []);
           
-          // Audio alert untuk mobil mewah
-          if (detection.class === 'mobil mewah') {
-            console.log('🚨 Mobil mewah terdeteksi! Memutar audio alert...');
+          // Audio alert untuk Non subsidized car
+          if (detection.class === 'Non subsidized car') {
+            console.log('🚨 Non subsidized car terdeteksi! Memutar audio alert...');
+            console.log('🔊 User interacted:', userInteractedRef.current);
+            
+            // Pastikan user sudah berinteraksi (untuk browser autoplay policy)
+            if (!userInteractedRef.current) {
+              console.warn('⚠️ User belum berinteraksi, audio mungkin tidak akan diputar');
+              // Tetap coba play, beberapa browser mungkin mengizinkan
+            }
+            
             playAudioAlert();
           }
           
@@ -751,6 +820,19 @@ const PlatNomorDetection = ({ onPlatDetected }) => {
     }
   };
   
+  // Handler untuk user interaction (untuk unlock audio)
+  const handleUserInteraction = () => {
+    if (!userInteractedRef.current) {
+      userInteractedRef.current = true;
+      console.log('✅ User interaction detected, audio unlocked');
+      
+      // Resume AudioContext jika ada yang suspended
+      if (audioAlertRef.current && audioAlertRef.current.state === 'suspended') {
+        audioAlertRef.current.resume().catch(() => {});
+      }
+    }
+  };
+  
   // Request notification permission dan load voices on mount
   useEffect(() => {
     if ('Notification' in window && Notification.permission === 'default') {
@@ -775,6 +857,18 @@ const PlatNomorDetection = ({ onPlatDetected }) => {
         window.speechSynthesis.onvoiceschanged = loadVoices;
       }
     }
+    
+    // Add event listeners untuk user interaction
+    const events = ['click', 'touchstart', 'keydown'];
+    events.forEach(event => {
+      document.addEventListener(event, handleUserInteraction, { once: true });
+    });
+    
+    return () => {
+      events.forEach(event => {
+        document.removeEventListener(event, handleUserInteraction);
+      });
+    };
   }, []);
   
   // Cleanup on unmount
@@ -1014,14 +1108,14 @@ const PlatNomorDetection = ({ onPlatDetected }) => {
         <div className="bg-gray-50 rounded-lg p-3">
           <div className="text-xs text-gray-600 mb-1">Class</div>
           <div className={`text-sm font-medium ${
-            detections.length > 0 && detections[0].class === 'mobil mewah' 
+            detections.length > 0 && detections[0].class === 'Non subsidized car' 
               ? 'text-red-600 font-bold' 
               : 'text-gray-900'
           }`}>
             {detections.length > 0 ? (
               <span className="flex items-center">
                 {detections[0].class}
-                {detections[0].class === 'mobil mewah' && (
+                {detections[0].class === 'Non subsidized car' && (
                   <span className="ml-2 text-red-500 animate-pulse">🔊</span>
                 )}
               </span>
@@ -1041,12 +1135,12 @@ const PlatNomorDetection = ({ onPlatDetected }) => {
       </div>
       
       {/* Audio Alert Info */}
-      {detections.length > 0 && detections[0].class === 'mobil mewah' && (
+      {detections.length > 0 && detections[0].class === 'Non subsidized car' && (
         <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
           <div className="flex items-center space-x-2">
             <AlertTriangle className="w-5 h-5 text-red-600" />
             <div>
-              <div className="text-sm font-semibold text-red-800">Peringatan: Mobil Mewah Terdeteksi!</div>
+              <div className="text-sm font-semibold text-red-800">Peringatan: Non subsidized car Terdeteksi!</div>
               <div className="text-xs text-red-600">Audio alert telah diputar</div>
             </div>
           </div>

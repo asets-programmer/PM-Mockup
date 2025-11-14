@@ -309,23 +309,38 @@ const ThermalDetection = ({ onThermalEvent }) => {
   };
 
   // Parse suhu dari data Arduino
-  // Format dari Arduino: "°C | Object Temperature: XX.XX °C"
+  // Format yang didukung:
+  // - "Suhu Objek : XX.XX °C" (Format Indonesia)
+  // - "Object Temperature: XX.XX °C" (Format Inggris)
+  // - "Temperature: XX.XX °C" (Format alternatif)
+  // - "Temp: XX.XX °C" (Format singkat)
+  // - "XX.XX °C" (Format minimal)
   const parseArduinoTemperature = () => {
     const buffer = serialReadBufferRef.current;
+    
+    // Debug: log buffer jika ada data baru (hanya log jika buffer cukup panjang atau ada newline)
+    if (buffer.length > 0 && (buffer.includes('\n') || buffer.length > 20)) {
+      console.log('📥 Buffer data dari Arduino:', JSON.stringify(buffer));
+    }
     
     // Cari pattern "Object Temperature: " diikuti angka (bisa ada spasi atau tidak)
     // Pattern lebih fleksibel untuk handle berbagai format
     // Mencari pattern dengan atau tanpa "°C |" di depan
     const patterns = [
-      /Object Temperature:\s*([\d.]+)\s*°C/i,  // Format: "Object Temperature: XX.XX °C"
+      /Suhu Objek\s*:\s*([\d.]+)\s*°C/i,        // Format Indonesia: "Suhu Objek : XX.XX °C"
+      /Object Temperature:\s*([\d.]+)\s*°C/i,    // Format: "Object Temperature: XX.XX °C"
       /Temperature:\s*([\d.]+)\s*°C/i,           // Format alternatif: "Temperature: XX.XX °C"
-      /Temp:\s*([\d.]+)\s*°C/i                    // Format singkat: "Temp: XX.XX °C"
+      /Temp:\s*([\d.]+)\s*°C/i,                  // Format singkat: "Temp: XX.XX °C"
+      /([\d.]+)\s*°C/i                            // Format minimal: "XX.XX °C" (fallback)
     ];
     
     let tempMatch = null;
     for (const pattern of patterns) {
       tempMatch = buffer.match(pattern);
-      if (tempMatch) break;
+      if (tempMatch) {
+        console.log('✅ Pattern matched:', pattern.toString());
+        break;
+      }
     }
     
     if (tempMatch) {
